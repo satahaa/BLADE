@@ -2,6 +2,10 @@
 #include <cstring>
 #include <iostream>
 
+#ifndef _WIN32
+    #include <netdb.h>
+#endif
+
 namespace blade {
 
 namespace NetworkUtils {
