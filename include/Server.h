@@ -1,7 +1,6 @@
 #ifndef BLADE_SERVER_H
 #define BLADE_SERVER_H
 
-#include <string>
 #include <memory>
 #include <atomic>
 #include "AuthenticationManager.h"
@@ -22,9 +21,11 @@ public:
      * @brief Constructor
      * @param port Port number to listen on
      * @param useAuth Enable/disable authentication
+     * @param username Username for authentication (required if useAuth is true)
+     * @param password Password for authentication (required if useAuth is true)
      */
-    Server(int port, bool useAuth = true);
-    
+    explicit Server(int port, bool useAuth = true, const std::string& username = "", const std::string& password = "");
+
     /**
      * @brief Destructor
      */
@@ -45,13 +46,13 @@ public:
      * @brief Check if server is running
      * @return true if server is running
      */
-    bool isRunning() const;
+    [[nodiscard]] bool isRunning() const;
     
     /**
      * @brief Get the port number
      * @return Port number
      */
-    int getPort() const;
+    [[nodiscard]] int getPort() const;
     
     /**
      * @brief Set authentication requirement

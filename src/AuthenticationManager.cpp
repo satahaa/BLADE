@@ -14,7 +14,7 @@ AuthenticationManager::AuthenticationManager() {
 AuthenticationManager::~AuthenticationManager() = default;
 
 bool AuthenticationManager::addUser(const std::string& username, const std::string& password) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     
     if (users_.find(username) != users_.end()) {
         return false; // User already exists
@@ -25,7 +25,7 @@ bool AuthenticationManager::addUser(const std::string& username, const std::stri
 }
 
 std::string AuthenticationManager::authenticate(const std::string& username, const std::string& password) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     
     auto it = users_.find(username);
     if (it == users_.end()) {
@@ -43,17 +43,17 @@ std::string AuthenticationManager::authenticate(const std::string& username, con
 }
 
 bool AuthenticationManager::validateToken(const std::string& token) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     return tokens_.find(token) != tokens_.end();
 }
 
 void AuthenticationManager::invalidateToken(const std::string& token) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     tokens_.erase(token);
 }
 
 bool AuthenticationManager::userExists(const std::string& username) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     return users_.find(username) != users_.end();
 }
 
@@ -71,12 +71,12 @@ std::string AuthenticationManager::generateToken() {
     static std::random_device rd;
     static std::mt19937 gen(rd());
     static std::uniform_int_distribution<> dis(0, 15);
-    
-    const char* hexChars = "0123456789abcdef";
+
     std::string token;
     token.reserve(32);
     
     for (int i = 0; i < 32; ++i) {
+        const auto hexChars = "0123456789abcdef";
         token += hexChars[dis(gen)];
     }
     

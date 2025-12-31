@@ -18,12 +18,10 @@
     #define closesocket close
 #endif
 
-namespace blade {
-
 /**
  * @brief Network utility functions
  */
-namespace NetworkUtils {
+namespace blade::NetworkUtils {
     /**
      * @brief Initialize network subsystem (Windows only)
      * @return true if successful
@@ -95,6 +93,6 @@ namespace NetworkUtils {
     int receiveData(SocketType socket, char* buffer, size_t maxSize);
 }
 
-} // namespace blade
+
 
 #endif // BLADE_NETWORK_UTILS_H

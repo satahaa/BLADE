@@ -52,7 +52,7 @@ public:
      * @brief Remove a client connection
      * @param clientId Client ID
      */
-    void removeClient(int clientId);
+    void removeClient(int clientId) const;
     
     /**
      * @brief Get number of connected clients
@@ -65,7 +65,7 @@ public:
      * @param clientId Client ID
      * @param token Authentication token
      */
-    void authenticateClient(int clientId, const std::string& token);
+    void authenticateClient(int clientId, const std::string& token) const;
     
     /**
      * @brief Send data to a client
@@ -73,7 +73,7 @@ public:
      * @param data Data to send
      * @return Number of bytes sent
      */
-    int sendToClient(int clientId, const std::string& data);
+    int sendToClient(int clientId, const std::string& data) const;
     
     /**
      * @brief Receive data from a client
@@ -82,7 +82,7 @@ public:
      * @param maxSize Maximum buffer size
      * @return Number of bytes received
      */
-    int receiveFromClient(int clientId, char* buffer, size_t maxSize);
+    int receiveFromClient(int clientId, char* buffer, size_t maxSize) const;
     
     /**
      * @brief Get all connected clients

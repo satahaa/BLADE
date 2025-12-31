@@ -63,10 +63,11 @@ public:
 private:
     std::unordered_map<std::string, std::string> users_; // username -> hashed password
     std::unordered_map<std::string, std::string> tokens_; // token -> username
-    std::mutex mutex_;
+    std::mutex mutex_{};
     
-    std::string hashPassword(const std::string& password);
-    std::string generateToken();
+    static std::string hashPassword(const std::string& password);
+
+    static std::string generateToken();
 };
 
 } // namespace blade

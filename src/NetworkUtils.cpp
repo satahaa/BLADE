@@ -1,11 +1,23 @@
 #include "NetworkUtils.h"
 #include <cstring>
 #include <cstdint>
-#include <cstdlib>
 #include <iostream>
+#include <cstdlib> // malloc/free
 
-#ifndef _WIN32
-    #include <netdb.h>
+#ifdef _WIN32
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+  #include <iphlpapi.h>
+  // MinGW/ld won't honor this pragma; linking must be done via build system.
+  // #pragma comment(lib, "iphlpapi.lib")
+#else
+  #include <unistd.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
+  #include <netdb.h>
+  #include <cerrno>
 #endif
 
 namespace blade::NetworkUtils {
@@ -29,58 +41,101 @@ SocketType createSocket() {
     return socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 }
 
-bool bindSocket(SocketType socket, int port) {
+bool bindSocket(SocketType socket, const int port) {
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(static_cast<uint16_t>(port));
 
-    // Set socket option to reuse address
     int opt = 1;
 #ifdef _WIN32
     setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
 #else
     setsockopt(socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 #endif
-    
-    return bind(socket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != SOCKET_ERROR;
+
+    // Don't use SOCKET_ERROR here (not reliably defined in MinGW builds for POSIX-like sockets).
+    return ::bind(socket, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) != -1;
 }
 
-bool listenSocket(SocketType socket, int backlog) {
-    return listen(socket, backlog) != SOCKET_ERROR;
+bool listenSocket(const SocketType socket, const int backlog) {
+    // Don't use SOCKET_ERROR here either.
+    return ::listen(socket, backlog) != -1;
 }
 
-SocketType acceptConnection(SocketType socket, std::string& clientAddress) {
+SocketType acceptConnection(const SocketType socket, std::string& clientAddress) {
     sockaddr_in clientAddr{};
-    socklen_t clientAddrLen = sizeof(clientAddr);
-    
 #ifdef _WIN32
-    SocketType clientSocket = accept(socket, (struct sockaddr*)&clientAddr, &clientAddrLen);
+    int clientAddrLen = sizeof(clientAddr); // WinSock accept() uses int*
+    const SocketType clientSocket = ::accept(socket, reinterpret_cast<sockaddr*>(&clientAddr), &clientAddrLen);
 #else
-    SocketType clientSocket = accept(socket, (struct sockaddr*)&clientAddr, &clientAddrLen);
+    socklen_t clientAddrLen = sizeof(clientAddr);
+    SocketType clientSocket = ::accept(socket, (struct sockaddr*)&clientAddr, &clientAddrLen);
 #endif
-    
+
     if (clientSocket != INVALID_SOCKET) {
         char ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &(clientAddr.sin_addr), ip, INET_ADDRSTRLEN);
         clientAddress = std::string(ip);
     }
-    
+
     return clientSocket;
 }
 
 void closeSocket(SocketType socket) {
     if (socket != INVALID_SOCKET) {
+#ifdef _WIN32
         closesocket(socket);
+#else
+        close(socket);
+#endif
     }
 }
 
+static bool isPrivateIPv4(const std::string& ip) {
+    // Minimal checks for common private ranges
+    return ip.rfind("10.", 0) == 0 ||
+           ip.rfind("192.168.", 0) == 0 ||
+           (ip.rfind("172.", 0) == 0 && ip.size() > 4 && (ip[4] >= '1' && ip[4] <= '3')); // 172.16-172.31 (coarse)
+}
+
 std::string getLocalIPAddress() {
-    char hostName[256];
-    if (gethostname(hostName, sizeof(hostName)) == SOCKET_ERROR) {
+#ifdef _WIN32
+    // MinGW-friendly: use GetAdaptersInfo (older API) instead of GetAdaptersAddresses.
+    ULONG bufLen = 0;
+    if (GetAdaptersInfo(nullptr, &bufLen) != ERROR_BUFFER_OVERFLOW || bufLen == 0) {
         return "127.0.0.1";
     }
-    
+
+    std::string best = "127.0.0.1";
+    auto* info = reinterpret_cast<IP_ADAPTER_INFO*>(std::malloc(bufLen));
+    if (!info) return "127.0.0.1";
+
+    if (GetAdaptersInfo(info, &bufLen) == NO_ERROR) {
+        for (auto* a = info; a != nullptr; a = a->Next) {
+            const char* ipStr = a->IpAddressList.IpAddress.String;
+            if (!ipStr || !*ipStr) continue;
+
+            std::string ip(ipStr);
+            if (ip == "0.0.0.0") continue;
+            if (ip.rfind("127.", 0) == 0) continue;
+
+            if (best == "127.0.0.1" || isPrivateIPv4(ip)) {
+                best = ip;
+                if (isPrivateIPv4(ip)) break;
+            }
+        }
+    }
+
+    std::free(info);
+    return best;
+#else
+    char hostName[256];
+    // POSIX gethostname returns 0 on success, -1 on error (no SOCKET_ERROR here)
+    if (gethostname(hostName, sizeof(hostName)) != 0) {
+        return "127.0.0.1";
+    }
+
     struct addrinfo hints{}, *result = nullptr;
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -90,12 +145,11 @@ std::string getLocalIPAddress() {
     }
 
     std::string ipAddress = "127.0.0.1";
-    std::string fallbackIP;
 
-    // Iterate through all available network interfaces
-    for (struct addrinfo* ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
+    // Get the first non-loopback IP address
+    for (const addrinfo* ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
         if (ptr->ai_family == AF_INET) {
-            auto* sockaddr_ipv4 = reinterpret_cast<struct sockaddr_in*>(ptr->ai_addr);
+            const auto* sockaddr_ipv4 = reinterpret_cast<struct sockaddr_in*>(ptr->ai_addr);
             char ip[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &(sockaddr_ipv4->sin_addr), ip, INET_ADDRSTRLEN);
 
@@ -106,36 +160,7 @@ std::string getLocalIPAddress() {
                 continue;
             }
 
-            // Check for common virtual adapter IP ranges
-            bool isVirtual = false;
-
-            // VMware/VirtualBox typically use 192.168.x.x
-            if (currentIP.rfind("192.168.", 0) == 0) {
-                isVirtual = true;
-            }
-
-            // Docker and some VPNs use 172.16.x.x - 172.31.x.x
-            if (currentIP.rfind("172.", 0) == 0 && currentIP.length() > 4) {
-                int secondOctet = std::atoi(currentIP.substr(4, 2).c_str());
-                if (secondOctet >= 16 && secondOctet <= 31) {
-                    isVirtual = true;
-                }
-            }
-
-            // APIPA/Link-local addresses (169.254.x.x)
-            if (currentIP.rfind("169.254.", 0) == 0) {
-                isVirtual = true;
-            }
-
-            if (isVirtual) {
-                // Keep as fallback if no better option found
-                if (fallbackIP.empty()) {
-                    fallbackIP = currentIP;
-                }
-                continue;
-            }
-
-            // Found a preferred non-virtual IP (e.g., 10.x.x.x)
+            // Use the first non-loopback IP found
             ipAddress = currentIP;
             break;
         }
@@ -143,12 +168,8 @@ std::string getLocalIPAddress() {
 
     freeaddrinfo(result);
 
-    // Use fallback if no preferred IP was found
-    if (ipAddress == "127.0.0.1" && !fallbackIP.empty()) {
-        return fallbackIP;
-    }
-
     return ipAddress;
+#endif
 }
 
 int sendData(SocketType socket, const std::string& data) {
