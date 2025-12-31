@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLADE - Local Network File Transfer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <h1>BLADE</h1>
+                <p class="subtitle">Bi-Directional LAN Asset Distribution Engine</p>
+            </div>
+            <div class="status" id="status">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Authentication Section -->
+            <section class="auth-section" id="authSection">
+                <div class="card">
+                    <h2>Authentication Required</h2>
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" name="username" placeholder="Enter username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" placeholder="Enter password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </form>
+                    <p class="hint">Default: admin / admin123</p>
+                </div>
+            </section>
+
+            <!-- Main Dashboard -->
+            <section class="dashboard" id="dashboard" style="display: none;">
+                <div class="card">
+                    <h2>Connected Devices</h2>
+                    <div class="device-list" id="deviceList">
+                        <p class="no-devices">No devices connected</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>File Transfer</h2>
+                    <div class="file-transfer">
+                        <div class="upload-section">
+                            <h3>Send Files</h3>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="fileInput" multiple>
+                                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">
+                                    Choose Files
+                                </button>
+                            </div>
+                            <div id="selectedFiles" class="selected-files"></div>
+                            <button class="btn btn-primary" id="sendBtn" disabled>Send Files</button>
+                        </div>
+                        
+                        <div class="download-section">
+                            <h3>Received Files</h3>
+                            <div id="receivedFiles" class="received-files">
+                                <p class="no-files">No files received yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Server Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Server IP:</span>
+                            <span class="info-value" id="serverIP">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Server Port:</span>
+                            <span class="info-value" id="serverPort">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Connected Users:</span>
+                            <span class="info-value" id="connectedUsers">0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Session Time:</span>
+                            <span class="info-value" id="sessionTime">00:00:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-danger" id="logoutBtn">Logout</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 BLADE Project. Open Source under GPL-3.0 License.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
