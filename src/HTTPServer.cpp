@@ -3,12 +3,12 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <algorithm>
+#include <utility>
 
 namespace blade {
 
-HTTPServer::HTTPServer(int port, const std::string& webRoot)
-    : port_(port), webRoot_(webRoot), running_(false) {}
+HTTPServer::HTTPServer(const int port, std::string  webRoot)
+    : port_(port), webRoot_(std::move(webRoot)), running_(false) {}
 
 HTTPServer::~HTTPServer() {
     stop();
@@ -74,7 +74,7 @@ void HTTPServer::run() {
     NetworkUtils::closeSocket(serverSocket);
 }
 
-void HTTPServer::handleRequest(int clientSocket) {
+void HTTPServer::handleRequest(SocketType clientSocket) {
     char buffer[4096];
     int bytesRead = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer) - 1);
     
@@ -120,7 +120,7 @@ void HTTPServer::handleRequest(int clientSocket) {
         response += "<html><body><h1>404 Not Found</h1></body></html>";
     }
     
-    NetworkUtils::sendData(clientSocket, response);
+    (void)NetworkUtils::sendData(clientSocket, response);
 }
 
 std::string HTTPServer::getContentType(const std::string& path) {

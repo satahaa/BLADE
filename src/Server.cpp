@@ -2,7 +2,6 @@
 #include "NetworkUtils.h"
 #include <iostream>
 #include <thread>
-#include <chrono>
 
 namespace blade {
 
@@ -113,8 +112,8 @@ void Server::acceptConnections() {
                 welcomeMsg += "Authentication is disabled.\n";
             }
             
-            connectionHandler_->sendToClient(clientId, welcomeMsg);
-            
+            (void)connectionHandler_->sendToClient(clientId, welcomeMsg);
+
             std::cout << "Client " << clientId << " connected. Total clients: " 
                       << connectionHandler_->getClientCount() << std::endl;
         }

@@ -16,7 +16,7 @@ ConnectionHandler::~ConnectionHandler() {
     clients_.clear();
 }
 
-int ConnectionHandler::addClient(int socket, const std::string& ipAddress) {
+int ConnectionHandler::addClient(SocketType socket, const std::string& ipAddress) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     auto client = std::make_shared<Client>(socket, ipAddress);
@@ -28,7 +28,7 @@ int ConnectionHandler::addClient(int socket, const std::string& ipAddress) {
 void ConnectionHandler::removeClient(int clientId) {
     std::lock_guard<std::mutex> lock(mutex_);
     
-    if (clientId >= 0 && clientId < static_cast<int>(clients_.size())) {
+    if (clientId >= 0 && static_cast<size_t>(clientId) < clients_.size()) {
         auto& client = clients_[clientId];
         if (client && client->socket != INVALID_SOCKET) {
             NetworkUtils::closeSocket(client->socket);
@@ -48,7 +48,7 @@ size_t ConnectionHandler::getClientCount() const {
 void ConnectionHandler::authenticateClient(int clientId, const std::string& token) {
     std::lock_guard<std::mutex> lock(mutex_);
     
-    if (clientId >= 0 && clientId < static_cast<int>(clients_.size())) {
+    if (clientId >= 0 && static_cast<size_t>(clientId) < clients_.size()) {
         auto& client = clients_[clientId];
         if (client) {
             client->token = token;
@@ -60,7 +60,7 @@ void ConnectionHandler::authenticateClient(int clientId, const std::string& toke
 int ConnectionHandler::sendToClient(int clientId, const std::string& data) {
     std::lock_guard<std::mutex> lock(mutex_);
     
-    if (clientId >= 0 && clientId < static_cast<int>(clients_.size())) {
+    if (clientId >= 0 && static_cast<size_t>(clientId) < clients_.size()) {
         auto& client = clients_[clientId];
         if (client && client->socket != INVALID_SOCKET) {
             return NetworkUtils::sendData(client->socket, data);
@@ -72,7 +72,7 @@ int ConnectionHandler::sendToClient(int clientId, const std::string& data) {
 int ConnectionHandler::receiveFromClient(int clientId, char* buffer, size_t maxSize) {
     std::lock_guard<std::mutex> lock(mutex_);
     
-    if (clientId >= 0 && clientId < static_cast<int>(clients_.size())) {
+    if (clientId >= 0 && static_cast<size_t>(clientId) < clients_.size()) {
         auto& client = clients_[clientId];
         if (client && client->socket != INVALID_SOCKET) {
             return NetworkUtils::receiveData(client->socket, buffer, maxSize);

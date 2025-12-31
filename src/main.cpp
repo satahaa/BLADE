@@ -4,6 +4,8 @@
 #include <string>
 #include <csignal>
 #include <memory>
+#include <thread>
+#include <chrono>
 
 // Global server instance for signal handling
 std::unique_ptr<blade::Server> g_server;

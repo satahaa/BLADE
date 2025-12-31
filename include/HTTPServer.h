@@ -3,7 +3,7 @@
 
 #include <string>
 #include <atomic>
-#include <thread>
+#include "NetworkUtils.h"
 
 namespace blade {
 
@@ -19,7 +19,7 @@ public:
      * @param port Port number for HTTP server
      * @param webRoot Root directory for web files
      */
-    HTTPServer(int port, const std::string& webRoot);
+    HTTPServer(int port, std::string  webRoot);
     
     /**
      * @brief Destructor
@@ -41,7 +41,7 @@ public:
      * @brief Check if HTTP server is running
      * @return true if running
      */
-    bool isRunning() const;
+    [[nodiscard]] bool isRunning() const;
 
 private:
     int port_;
@@ -50,9 +50,9 @@ private:
     std::thread serverThread_;
     
     void run();
-    void handleRequest(int clientSocket);
-    std::string getContentType(const std::string& path);
-    std::string loadFile(const std::string& path);
+    void handleRequest(SocketType clientSocket);
+    static std::string getContentType(const std::string& path);
+    static std::string loadFile(const std::string& path);
 };
 
 } // namespace blade

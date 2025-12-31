@@ -1,10 +1,12 @@
 #ifndef BLADE_CONNECTION_HANDLER_H
 #define BLADE_CONNECTION_HANDLER_H
 
+#include <utility>
 #include <vector>
 #include <memory>
 #include <string>
 #include <mutex>
+#include "NetworkUtils.h"
 
 namespace blade {
 
@@ -12,13 +14,13 @@ namespace blade {
  * @brief Represents a connected client
  */
 struct Client {
-    int socket;
+    SocketType socket;
     std::string ipAddress;
     std::string token;
     bool authenticated;
     
-    Client(int sock, const std::string& ip) 
-        : socket(sock), ipAddress(ip), authenticated(false) {}
+    Client(SocketType sock, std::string  ip)
+        : socket(sock), ipAddress(std::move(ip)), authenticated(false) {}
 };
 
 /**
@@ -44,8 +46,8 @@ public:
      * @param ipAddress Client IP address
      * @return Client ID
      */
-    int addClient(int socket, const std::string& ipAddress);
-    
+    int addClient(SocketType socket, const std::string& ipAddress);
+
     /**
      * @brief Remove a client connection
      * @param clientId Client ID
