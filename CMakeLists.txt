@@ -39,17 +39,21 @@ set(HEADERS
 # Create executable
 add_executable(blade ${SOURCES} ${HEADERS})
 
-# Windows: Embed manifest to request administrator privileges for HTTPS
+# Windows: Embed manifest and icon
 if(WIN32)
     if(MINGW)
-        # For MinGW, create a resource file to embed the manifest
+        # For MinGW, create a resource file to embed the manifest and icon
         set(MANIFEST_RC "${CMAKE_CURRENT_BINARY_DIR}/blade.rc")
-        file(WRITE ${MANIFEST_RC} "1 24 \"${CMAKE_SOURCE_DIR}/blade.manifest\"\n")
+        file(WRITE ${MANIFEST_RC} "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/blade.ico\"\n1 24 \"${CMAKE_SOURCE_DIR}/blade.manifest\"\n")
 
         # Add the RC file to the target
         target_sources(blade PRIVATE ${MANIFEST_RC})
     elseif(MSVC)
-        # For MSVC, use linker flags
+        # For MSVC, create a resource file for icon and use linker flags for manifest
+        set(MANIFEST_RC "${CMAKE_CURRENT_BINARY_DIR}/blade.rc")
+        file(WRITE ${MANIFEST_RC} "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/blade.ico\"\n")
+        target_sources(blade PRIVATE ${MANIFEST_RC})
+
         set_target_properties(blade PROPERTIES
             LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\""
         )
