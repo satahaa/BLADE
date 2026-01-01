@@ -107,8 +107,13 @@ header {
     margin: 50px auto;
 }
 
+.auth-section form {
+    text-align: center;
+}
+
 .form-group {
     margin-bottom: 20px;
+    text-align: left;
 }
 
 .form-group label {
@@ -116,6 +121,39 @@ header {
     margin-bottom: 8px;
     color: var(--text-secondary);
     font-weight: 500;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    flex: 1;
+    padding-right: 45px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    font-size: 1.2rem;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.3s;
+}
+
+.password-toggle:hover {
+    opacity: 1;
+}
+
+.eye-icon {
+    display: inline-block;
+    user-select: none;
 }
 
 .form-group input {
@@ -231,6 +269,16 @@ header {
     gap: 30px;
 }
 
+.upload-section {
+    text-align: left;
+}
+
+.upload-section .btn-primary {
+    display: block;
+    margin: 15px auto 0;
+    text-align: center;
+}
+
 @media (max-width: 768px) {
     .file-transfer {
         grid-template-columns: 1fr;
@@ -266,6 +314,12 @@ header {
     align-items: center;
 }
 
+.file-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
 .file-name {
     color: var(--text-color);
 }
@@ -273,6 +327,26 @@ header {
 .file-size {
     color: var(--text-secondary);
     font-size: 0.9rem;
+}
+
+.remove-file-btn {
+    background: var(--background-color);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    padding: 6px 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-file-btn:hover {
+    background: var(--danger-hover);
+    transform: scale(1.1);
 }
 
 .received-files {
@@ -333,3 +407,31 @@ footer {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--secondary-color);
 }
+
+/* Connected Devices Styling */
+#connectedDevicesList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#connectedDevicesList > div {
+    padding: 12px 15px !important;
+    background: var(--background-color) !important;
+    border-radius: 8px !important;
+    color: var(--primary-color) !important;
+    box-shadow: var(--shadow) !important;
+    border: 1px solid var(--border-color) !important;
+    margin-bottom: 0 !important;
+}
+
+#connectedDevicesList > div strong {
+    color: white !important;
+    font-size: 1rem;
+}
+
+#connectedDevicesList > p {
+    color: var(--text-secondary) !important;
+    font-style: italic;
+}
+

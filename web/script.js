@@ -1,10 +1,12 @@
 // BLADE Web Interface JavaScript
 
-class BLADEClient {
+class BladeApp {
     constructor() {
         this.authenticated = false;
+        this.authConfig = null;
         this.sessionStartTime = null;
         this.sessionTimer = null;
+        this.selectedFiles = []; // Store selected files persistently
         this.init();
     }
 
@@ -12,17 +14,93 @@ class BLADEClient {
         // Setup event listeners
         this.setupEventListeners();
         
-        // Check authentication status
-        this.checkAuthStatus();
-        
-        // Update UI
+        // Check authentication status and load auth config
+        this.loadAuthConfig();
+    }
+
+    async loadAuthConfig() {
         this.updateStatus('connecting');
         
-        // Simulate connection (in a real implementation, this would connect to the server)
-        setTimeout(() => {
-            this.updateStatus('connected');
-            this.loadServerInfo();
-        }, 1000);
+        try {
+            // Add timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+            // Add cache-busting parameter and proper headers for mobile
+            const response = await fetch('/api/auth-config?t=' + Date.now(), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                },
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const text = await response.text();
+            console.log('Raw response:', text);
+
+            this.authConfig = JSON.parse(text);
+            console.log('Auth config received:', this.authConfig);
+
+            // If authentication is not enabled, bypass login
+            if (!this.authConfig.authEnabled) {
+                console.log('Auth disabled - bypassing login');
+                this.authenticated = true;
+                this.updateStatus('connected');
+                this.loadServerInfo();
+                this.showDashboard();
+            } else {
+                // Show login page - don't set status to connected yet
+                console.log('Auth enabled - showing login page');
+                console.log('Expected credentials:');
+                console.log('  Username:', this.authConfig.username);
+                console.log('  Password:', this.authConfig.password);
+                this.updateStatus('disconnected'); // Not connected until login
+                document.getElementById('authSection').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Failed to load auth config:', error);
+            console.error('Error details:', error.name, error.message);
+
+            // Check if it's a timeout or network error
+            if (error.name === 'AbortError') {
+                this.updateStatus('disconnected');
+                this.showNotification('Connection timeout. Please check if the server is running.', 'error');
+            } else {
+                this.updateStatus('disconnected');
+                this.showNotification('Cannot connect to server. Please check your connection.', 'error');
+            }
+
+            // Show error message on page
+            const authSection = document.getElementById('authSection');
+            if (authSection) {
+                authSection.style.display = 'block';
+                authSection.innerHTML = `
+                    <div class="card">
+                        <h2>Connection Error</h2>
+                        <p style="color: var(--danger-color); margin-bottom: 15px;">
+                            Failed to connect to the server.
+                        </p>
+                        <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                            Error: ${error.message}
+                        </p>
+                        <p style="color: var(--text-secondary);">
+                            Please ensure the BLADE server is running and try refreshing the page.
+                        </p>
+                        <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">
+                            Retry Connection
+                        </button>
+                    </div>
+                `;
+            }
+        }
     }
 
     setupEventListeners() {
@@ -60,48 +138,78 @@ class BLADEClient {
         }
     }
 
-    checkAuthStatus() {
-        // In a real implementation, check if user has a valid token
-        const token = localStorage.getItem('blade_token');
-        if (token) {
-            this.authenticated = true;
-            this.showDashboard();
-        }
-    }
-
     handleLogin() {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
 
-        // Simulate authentication (in production, this would call the server)
-        if (username === 'admin' && password === 'admin123') {
-            const token = this.generateToken();
-            localStorage.setItem('blade_token', token);
-            this.authenticated = true;
-            this.showDashboard();
-            this.showNotification('Login successful!', 'success');
+        console.log('=== LOGIN ATTEMPT ===');
+        console.log('Entered username:', username);
+        console.log('Entered password:', password);
+        console.log('Expected username:', this.authConfig?.username);
+        console.log('Expected password:', this.authConfig?.password);
+        console.log('Auth enabled:', this.authConfig?.authEnabled);
+
+        // Check against server-provided credentials
+        if (this.authConfig && this.authConfig.authEnabled) {
+            // Exact string comparison
+            const usernameMatch = username === this.authConfig.username;
+            const passwordMatch = password === this.authConfig.password;
+
+            console.log('Username match:', usernameMatch);
+            console.log('Password match:', passwordMatch);
+
+            if (usernameMatch && passwordMatch) {
+                console.log('✅ Login successful!');
+                this.authenticated = true;
+                this.updateStatus('connected');
+                this.loadServerInfo();
+                this.showDashboard();
+                this.showNotification('Login successful!', 'success');
+            } else {
+                console.log('❌ Login failed - Invalid credentials');
+                this.showNotification('Invalid credentials', 'error');
+            }
         } else {
-            this.showNotification('Invalid credentials', 'error');
+            console.log('❌ Authentication is not enabled');
+            this.showNotification('Authentication is not enabled', 'error');
         }
     }
 
     handleLogout() {
-        localStorage.removeItem('blade_token');
         this.authenticated = false;
         this.hideMainContent();
-        document.getElementById('authSection').style.display = 'block';
+
+        // Only show login page if authentication is enabled
+        if (this.authConfig && this.authConfig.authEnabled) {
+            document.getElementById('authSection').style.display = 'block';
+            this.showNotification('Logged out successfully', 'success');
+        } else {
+            // If no auth, just reload the page to dashboard
+            this.authenticated = true;
+            this.showDashboard();
+        }
+
         if (this.sessionTimer) {
             clearInterval(this.sessionTimer);
         }
-        this.showNotification('Logged out successfully', 'success');
     }
 
     showDashboard() {
         document.getElementById('authSection').style.display = 'none';
         document.getElementById('dashboard').style.display = 'block';
+
+        // Hide logout button if authentication is disabled
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            if (this.authConfig && this.authConfig.authEnabled) {
+                logoutBtn.style.display = 'block';
+            } else {
+                logoutBtn.style.display = 'none';
+            }
+        }
+
         this.sessionStartTime = Date.now();
         this.startSessionTimer();
-        this.loadDevices();
     }
 
     hideMainContent() {
@@ -127,14 +235,45 @@ class BLADEClient {
     loadServerInfo() {
         // In a real implementation, fetch this from the server
         document.getElementById('serverIP').textContent = window.location.hostname || 'localhost';
-        document.getElementById('serverPort').textContent = window.location.port || '8081';
-        this.updateConnectedUsers();
+        document.getElementById('serverPort').textContent = window.location.port || '80';
+        this.loadConnectedDevices();
     }
 
-    updateConnectedUsers() {
-        // Simulate connected users count
-        const count = Math.floor(Math.random() * 5) + 1;
-        document.getElementById('connectedUsers').textContent = count;
+    async loadConnectedDevices() {
+        const devicesList = document.getElementById('connectedDevicesList');
+
+        try {
+            // Fetch connected devices from server
+            const response = await fetch('/api/connected-devices?t=' + Date.now(), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const connectedIPs = data.devices || [];
+
+                if (connectedIPs.length === 0) {
+                    devicesList.innerHTML = '<p style="color: #888; font-style: italic;">No devices connected</p>';
+                } else {
+                    devicesList.innerHTML = connectedIPs.map(ip =>
+                        `<div style="padding: 8px; background: #f5f5f5; border-radius: 4px; color: #333; margin-bottom: 5px;">
+                            <strong>📱 ${ip}</strong>
+                        </div>`
+                    ).join('');
+                }
+            } else {
+                devicesList.innerHTML = '<p style="color: #888; font-style: italic;">No devices connected</p>';
+            }
+        } catch (error) {
+            console.error('Failed to fetch connected devices:', error);
+            devicesList.innerHTML = '<p style="color: #888; font-style: italic;">No devices connected</p>';
+        }
+
+        // Poll for updates every 3 seconds
+        setTimeout(() => this.loadConnectedDevices(), 3000);
     }
 
     startSessionTimer() {
@@ -143,93 +282,102 @@ class BLADEClient {
             const hours = Math.floor(elapsed / 3600000);
             const minutes = Math.floor((elapsed % 3600000) / 60000);
             const seconds = Math.floor((elapsed % 60000) / 1000);
-            
-            const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            document.getElementById('sessionTime').textContent = timeString;
+
+            document.getElementById('sessionTime').textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }, 1000);
     }
 
-    loadDevices() {
-        const deviceList = document.getElementById('deviceList');
-        
-        // Simulate some connected devices
-        const devices = [
-            { name: 'Desktop PC', ip: '192.168.1.100', status: 'online' },
-            { name: 'Laptop', ip: '192.168.1.101', status: 'online' },
-            { name: 'Mobile Phone', ip: '192.168.1.102', status: 'online' }
-        ];
-
-        if (devices.length === 0) {
-            deviceList.innerHTML = '<p class="no-devices">No devices connected</p>';
-            return;
-        }
-
-        deviceList.innerHTML = devices.map(device => `
-            <div class="device-item">
-                <div class="device-info">
-                    <span class="device-name">${device.name}</span>
-                    <span class="device-ip">${device.ip}</span>
-                </div>
-                <span class="device-status" style="color: var(--success-color);">Online</span>
-            </div>
-        `).join('');
-    }
 
     handleFileSelection(event) {
         const files = event.target.files;
+
+        // Add newly selected files to our persistent list (avoid duplicates by name)
+        Array.from(files).forEach(file => {
+            const exists = this.selectedFiles.some(f => f.name === file.name && f.size === file.size);
+            if (!exists) {
+                this.selectedFiles.push(file);
+            }
+        });
+
+        // Clear the file input so user can select the same files again if needed
+        event.target.value = '';
+
+        this.updateSelectedFilesDisplay();
+    }
+
+    updateSelectedFilesDisplay() {
         const selectedFilesDiv = document.getElementById('selectedFiles');
         const sendBtn = document.getElementById('sendBtn');
 
-        if (files.length === 0) {
+        if (this.selectedFiles.length === 0) {
             selectedFilesDiv.innerHTML = '';
             sendBtn.disabled = true;
             return;
         }
 
-        selectedFilesDiv.innerHTML = Array.from(files).map(file => `
+        selectedFilesDiv.innerHTML = this.selectedFiles.map((file, index) => `
             <div class="file-item">
-                <span class="file-name">${file.name}</span>
-                <span class="file-size">${this.formatFileSize(file.size)}</span>
+                <div class="file-info">
+                    <span class="file-name">${file.name}</span>
+                    <span class="file-size">${this.formatFileSize(file.size)}</span>
+                </div>
+                <button class="remove-file-btn" onclick="app.removeFile(${index})" aria-label="Remove file"><img src="icons/delete.svg" alt="Delete" style="width: 20px; height: 20px;"></button>
             </div>
         `).join('');
 
         sendBtn.disabled = false;
     }
 
-    sendFiles() {
-        const fileInput = document.getElementById('fileInput');
-        const files = fileInput.files;
+    removeFile(index) {
+        this.selectedFiles.splice(index, 1);
+        this.updateSelectedFilesDisplay();
+    }
 
-        if (files.length === 0) {
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const eyeIcon = document.querySelector('.eye-icon img');
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            eyeIcon.src = 'icons/not_visible.svg';
+            eyeIcon.alt = 'Hide';
+        } else {
+            passwordInput.type = 'password';
+            eyeIcon.src = 'icons/visible.svg';
+            eyeIcon.alt = 'Show';
+        }
+    }
+
+    sendFiles() {
+        if (this.selectedFiles.length === 0) {
             this.showNotification('No files selected', 'error');
             return;
         }
 
         // Simulate file sending
-        this.showNotification(`Sending ${files.length} file(s)...`, 'info');
-        
+        this.showNotification(`Sending ${this.selectedFiles.length} file(s)...`, 'info');
+
         setTimeout(() => {
             this.showNotification('Files sent successfully!', 'success');
-            fileInput.value = '';
-            document.getElementById('selectedFiles').innerHTML = '';
-            document.getElementById('sendBtn').disabled = true;
+            this.selectedFiles = [];
+            this.updateSelectedFilesDisplay();
         }, 2000);
     }
 
     formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
-        const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-    }
-
-    generateToken() {
-        return Math.random().toString(36).substring(2) + Date.now().toString(36);
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
     }
 
     showNotification(message, type = 'info') {
-        // Create a simple notification
+        const colors = {
+            success: 'var(--success-color)',
+            error: 'var(--danger-color)',
+            info: 'var(--primary-color)'
+        };
+
         const notification = document.createElement('div');
         notification.style.cssText = `
             position: fixed;
@@ -237,6 +385,7 @@ class BLADEClient {
             right: 20px;
             padding: 15px 25px;
             border-radius: 5px;
+            background: ${colors[type] || colors.info};
             color: white;
             font-weight: 600;
             z-index: 1000;
@@ -244,22 +393,12 @@ class BLADEClient {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         `;
 
-        if (type === 'success') {
-            notification.style.background = 'var(--success-color)';
-        } else if (type === 'error') {
-            notification.style.background = 'var(--danger-color)';
-        } else {
-            notification.style.background = 'var(--primary-color)';
-        }
-
         notification.textContent = message;
         document.body.appendChild(notification);
 
         setTimeout(() => {
             notification.style.animation = 'slideOut 0.3s ease-in';
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
+            setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
 }
@@ -292,5 +431,5 @@ document.head.appendChild(style);
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    new BLADEClient();
+    window.app = new BladeApp();
 });

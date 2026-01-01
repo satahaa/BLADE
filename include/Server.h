@@ -3,6 +3,11 @@
 
 #include <memory>
 #include <atomic>
+#include <unordered_set>
+#include <unordered_map>
+#include <mutex>
+#include <vector>
+#include <chrono>
 #include "AuthenticationManager.h"
 #include "ConnectionHandler.h"
 #include "HTTPServer.h"
@@ -60,6 +65,18 @@ public:
      */
     void setAuthRequired(bool useAuth);
 
+    /**
+     * @brief Get list of connected device IPs
+     * @return Vector of connected IP addresses
+     */
+    std::vector<std::string> getConnectedDevices() const;
+
+    /**
+     * @brief Track an HTTP client connection
+     * @param clientIP IP address of the HTTP client
+     */
+    void trackHTTPConnection(const std::string& clientIP);
+
 private:
     int port_;
     bool useAuth_;
@@ -69,7 +86,16 @@ private:
     std::unique_ptr<ConnectionHandler> connectionHandler_;
     std::unique_ptr<HTTPServer> httpServer_;
     
+    // Track connected client IPs for clean logging
+    std::unordered_set<std::string> connectedIPs_;
+
+    // Track HTTP client IPs with last activity timestamp (for active session tracking)
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> httpClientActivity_;
+
+    mutable std::mutex ipMutex_;
+
     void acceptConnections();
+    void cleanupInactiveHTTPClients();
 };
 
 } // namespace blade

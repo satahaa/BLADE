@@ -6,30 +6,28 @@
 #include <thread>
 #include "NetworkUtils.h"
 
-#ifdef _WIN32
-#ifndef SECURITY_WIN32
-#define SECURITY_WIN32
-#endif
-#include <wincrypt.h>
-#include <schannel.h>
-#include <security.h>
-#endif
-
 namespace blade {
 
+// Forward declaration
+class Server;
+
 /**
- * @brief HTTPS server for serving web interface
+ * @brief HTTP server for serving web interface
  *
- * Serves HTML, CSS, and JavaScript files over secure connection.
+ * Serves HTML, CSS, and JavaScript files over HTTP.
  */
 class HTTPServer {
 public:
     /**
      * @brief Constructor
-     * @param port Port number for HTTPS server
+     * @param port Port number for HTTP server
      * @param webRoot Root directory for web files
+     * @param server Pointer to the main server instance
+     * @param useAuth Enable authentication
+     * @param username Username for authentication
+     * @param password Password for authentication
      */
-    HTTPServer(int port, std::string webRoot);
+    HTTPServer(int port, std::string webRoot, Server* server, bool useAuth = false, std::string username = "", std::string password = "");
 
     /**
      * @brief Destructor
@@ -37,13 +35,13 @@ public:
     ~HTTPServer();
     
     /**
-     * @brief Start the HTTPS server
+     * @brief Start the HTTP server
      * @return true if server started successfully
      */
     bool start();
     
     /**
-     * @brief Stop the HTTPS server
+     * @brief Stop the HTTP server
      */
     void stop();
     
@@ -56,26 +54,25 @@ public:
 private:
     int port_;
     std::string webRoot_;
-    bool useHttps_;
     std::atomic<bool> running_;
     std::thread serverThread_;
     
-#ifdef _WIN32
-    HCERTSTORE certStore_;
-    PCCERT_CONTEXT certContext_;
-    CredHandle credHandle_;
-    bool sslInitialized_;
+    // Reference to main server
+    Server* server_;
 
-    bool initializeSSL();
-    void cleanupSSL();
-    bool createSelfSignedCert();
-#endif
+    // Authentication configuration
+    bool useAuth_;
+    std::string username_;
+    std::string password_;
 
     void run();
 
     void handleRequest(SocketType clientSocket) const;
+    static void setSocketTimeout(SocketType socket, int seconds) ;
     static std::string getContentType(const std::string& path);
     static std::string loadFile(const std::string& path);
+    [[nodiscard]] std::string getAuthConfig() const;
+    [[nodiscard]] std::string getConnectedDevicesJson() const;
 };
 
 } // namespace blade

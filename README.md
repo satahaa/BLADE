@@ -154,6 +154,40 @@ Make sure these ports are not blocked by your firewall.
 
 ## Troubleshooting
 
+### External Devices Cannot Connect (Connection Timeout)
+
+**Problem:** Web interface works on localhost but times out from phones/tablets/other PCs.
+
+**Solution:** Configure Windows Firewall (or your OS firewall) to allow incoming connections.
+
+**On Windows:**
+1. Run the firewall setup script **as Administrator**:
+   ```batch
+   cd bin
+   setup-firewall.bat
+   ```
+2. Find your server IP address:
+   ```batch
+   ipconfig
+   ```
+   Look for "IPv4 Address" (e.g., 192.168.1.100)
+3. Access from other devices: `http://YOUR_SERVER_IP`
+
+**Common Issues:**
+- ❌ Devices not on same WiFi/network
+- ❌ Router AP Isolation enabled (check router settings)
+- ❌ VPN active on server PC
+- ❌ Antivirus blocking connections
+- ❌ Firewall not configured
+
+**Diagnostic Tool:**
+```powershell
+cd bin
+powershell -ExecutionPolicy Bypass -File .\diagnose.ps1
+```
+
+📖 **Detailed Guide:** See `docs/NETWORK-ACCESS-FIX.md`
+
 ### Port Already in Use
 
 If you get a "port already in use" error:
@@ -162,12 +196,6 @@ If you get a "port already in use" error:
 ./blade -p 9000
 ```
 
-### Cannot Connect from Other Devices
-
-1. Check firewall settings
-2. Ensure devices are on the same network
-3. Verify the server IP address is correct
-4. Try disabling authentication: `./blade --no-auth`
 
 ### Build Errors
 

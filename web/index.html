@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLADE - Local Network File Transfer</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
     <div class="container">
@@ -21,7 +21,7 @@
 
         <main>
             <!-- Authentication Section -->
-            <section class="auth-section" id="authSection">
+            <section class="auth-section" id="authSection" style="display: none;">
                 <div class="card">
                     <h2>Authentication Required</h2>
                     <form id="loginForm">
@@ -31,23 +31,20 @@
                         </div>
                         <div class="form-group">
                             <label for="password">Password</label>
-                            <input type="password" id="password" name="password" placeholder="Enter password" required>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="password" name="password" placeholder="Enter password" required>
+                                <button type="button" class="password-toggle" onclick="app.togglePasswordVisibility()" aria-label="Toggle password visibility">
+                                    <span class="eye-icon"><img src="icons/visible.svg" alt="Show" style="width: 20px; height: 20px;"></span>
+                                </button>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary">Login</button>
                     </form>
-                    <p class="hint">Default: admin / admin123</p>
                 </div>
             </section>
 
             <!-- Main Dashboard -->
             <section class="dashboard" id="dashboard" style="display: none;">
-                <div class="card">
-                    <h2>Connected Devices</h2>
-                    <div class="device-list" id="deviceList">
-                        <p class="no-devices">No devices connected</p>
-                    </div>
-                </div>
-
                 <div class="card">
                     <h2>File Transfer</h2>
                     <div class="file-transfer">
@@ -84,12 +81,14 @@
                             <span class="info-value" id="serverPort">-</span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Connected Users:</span>
-                            <span class="info-value" id="connectedUsers">0</span>
-                        </div>
-                        <div class="info-item">
                             <span class="info-label">Session Time:</span>
                             <span class="info-value" id="sessionTime">00:00:00</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <h3 style="margin-bottom: 10px; color: #2563eb;">Connected Devices</h3>
+                        <div id="connectedDevicesList" style="display: flex; flex-direction: column; gap: 8px;">
+                            <p style="color: #888; font-style: italic;">No devices connected</p>
                         </div>
                     </div>
                 </div>
@@ -101,10 +100,10 @@
         </main>
 
         <footer>
-            <p>&copy; 2024 BLADE Project. Open Source under GPL-3.0 License.</p>
+            <p>&copy; 2025 BLADE Project. Open Source under GPL-3.0 License.</p>
         </footer>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=4"></script>
 </body>
 </html>

@@ -62,10 +62,18 @@ target_link_libraries(blade PRIVATE Threads::Threads)
 
 # Platform-specific libraries
 if(WIN32)
-    target_link_libraries(blade PRIVATE ws2_32 secur32 crypt32)
+    target_link_libraries(blade PRIVATE ws2_32 secur32 crypt32 iphlpapi)
 elseif(UNIX)
     target_link_libraries(blade PRIVATE pthread)
 endif()
+
+# Copy web folder to build directory
+add_custom_command(TARGET blade POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/web
+    ${CMAKE_CURRENT_BINARY_DIR}/web
+    COMMENT "Copying web files to build directory"
+)
 
 # Installation
 install(TARGETS blade DESTINATION bin)

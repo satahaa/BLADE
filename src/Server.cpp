@@ -2,14 +2,17 @@
 #include "NetworkUtils.h"
 #include <iostream>
 #include <thread>
-#include <unordered_set>
-#include <mutex>
+#include <vector>
 
 namespace blade {
 
-Server::Server(int port, bool useAuth, const std::string& username, const std::string& password)
+Server::Server(const int port, bool useAuth, const std::string& username, const std::string& password)
     : port_(port), useAuth_(useAuth), running_(false) {
     authManager_ = std::make_unique<AuthenticationManager>();
+
+    // Debug logging
+    std::cout << "[DEBUG] Server constructor - useAuth: " << (useAuth ? "true" : "false")
+              << ", username: '" << username << "', password: '" << password << "'" << std::endl;
 
     // Register user credentials if authentication is enabled
     if (useAuth_ && !username.empty() && !password.empty()) {
@@ -19,7 +22,7 @@ Server::Server(int port, bool useAuth, const std::string& username, const std::s
     }
 
     connectionHandler_ = std::make_unique<ConnectionHandler>();
-    httpServer_ = std::make_unique<HTTPServer>(port + 1, "./web"); // HTTPS always enabled
+    httpServer_ = std::make_unique<HTTPServer>(80, "./web", this, useAuth_, username, password); // Web interface on port 80 (HTTP)
 }
 
 Server::~Server() {
@@ -47,17 +50,21 @@ bool Server::start() {
     std::thread acceptThread(&Server::acceptConnections, this);
     acceptThread.detach();
     
-    std::cout << "BLADE Server started on port " << port_ << " (HTTPS)" << std::endl;
+    // Start cleanup thread for inactive HTTP clients
+    std::thread cleanupThread(&Server::cleanupInactiveHTTPClients, this);
+    cleanupThread.detach();
 
     const std::string ip = NetworkUtils::getLocalIPAddress();
 
-    std::cout << "\n========================================\n";
-    std::cout << "Connect from your phone (same Wi-Fi):\n";
-    std::cout << "  https://" << ip << ":" << port_ << "\n";
-    std::cout << "From this PC:\n";
-    std::cout << "  https://localhost:" << port_ << "\n";
-    std::cout << "========================================\n";
+    std::cout << "\n========================================" << std::endl;
+    std::cout << "   BLADE Server Started Successfully" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << "\nWeb Interface Access:" << std::endl;
+    std::cout << "  http://" << ip << std::endl;
+    std::cout << "\nFile Transfer Port: " << port_ << std::endl;
     std::cout << "Authentication: " << (useAuth_ ? "ENABLED" : "DISABLED") << std::endl;
+    std::cout << "\nWaiting for client connections..." << std::endl;
+    std::cout << "========================================\n" << std::endl;
 
     return true;
 }
@@ -86,11 +93,49 @@ void Server::setAuthRequired(const bool useAuth) {
     useAuth_ = useAuth;
 }
 
-void Server::acceptConnections() {
-    // Track which client IPs we have already printed as "logged in"
-    static std::unordered_set<std::string> announced;
-    static std::mutex announcedMu;
+std::vector<std::string> Server::getConnectedDevices() const {
+    std::lock_guard<std::mutex> lock(ipMutex_);
+    return std::vector<std::string>(connectedIPs_.begin(), connectedIPs_.end());
+}
 
+void Server::trackHTTPConnection(const std::string& clientIP) {
+    std::lock_guard<std::mutex> lock(ipMutex_);
+
+    // Update the last activity timestamp for this client
+    auto now = std::chrono::steady_clock::now();
+    bool isNewIP = httpClientActivity_.find(clientIP) == httpClientActivity_.end();
+    httpClientActivity_[clientIP] = now;
+
+    // Add to connected IPs set
+    connectedIPs_.insert(clientIP);
+
+    if (isNewIP) {
+        std::cout << "[HTTP CLIENT] " << clientIP << " connected" << std::endl;
+    }
+}
+
+void Server::cleanupInactiveHTTPClients() {
+    while (running_) {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        std::lock_guard<std::mutex> lock(ipMutex_);
+        auto now = std::chrono::steady_clock::now();
+
+        // Remove clients that haven't had activity in the last 10 seconds
+        for (auto it = httpClientActivity_.begin(); it != httpClientActivity_.end();) {
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count();
+            if (elapsed > 10) {
+                std::cout << "[HTTP CLIENT] " << it->first << " disconnected (timeout)" << std::endl;
+                connectedIPs_.erase(it->first);
+                it = httpClientActivity_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+}
+
+void Server::acceptConnections() {
     const SocketType serverSocket = NetworkUtils::createSocket();
     if (serverSocket == INVALID_SOCKET) {
         std::cerr << "Failed to create server socket" << std::endl;
@@ -112,50 +157,67 @@ void Server::acceptConnections() {
         return;
     }
     
+    // Get the server's own IP to filter it out
+    const std::string serverIP = NetworkUtils::getLocalIPAddress();
+
     while (running_) {
         std::string clientAddr;
         SocketType clientSocket = NetworkUtils::acceptConnection(serverSocket, clientAddr);
 
         if (clientSocket != INVALID_SOCKET) {
-            std::cout << "New connection from " << clientAddr << std::endl;
-
             const int clientId = connectionHandler_->addClient(clientSocket, clientAddr);
 
-            std::string welcomeMsg = "Welcome to BLADE Server!\n";
-            if (useAuth_) {
-                welcomeMsg += "Please authenticate to continue.\n";
-            } else {
-                welcomeMsg += "Authentication is disabled.\n";
-            }
-            (void)connectionHandler_->sendToClient(clientId, welcomeMsg);
+            // Filter out local connections completely:
+            // - localhost (127.0.0.1, ::1)
+            // - loopback range (127.0.0.0/8)
+            // - server's own LAN IP (the PC running the server)
+            bool isLocalConnection = (clientAddr == "127.0.0.1" ||
+                                     clientAddr == "::1" ||
+                                     clientAddr.find("127.") == 0 ||
+                                     clientAddr == serverIP);
 
-            // If auth is disabled, consider the device "logged in" immediately and print its IP once.
-            if (!useAuth_) {
-                std::lock_guard<std::mutex> lock(announcedMu);
-                if (announced.insert(clientAddr).second) {
-                    std::cout << "[CONNECTED DEVICE] " << clientAddr << " (auth disabled)\n";
+            // Only track and log connections from external devices (not the local PC)
+            if (!isLocalConnection) {
+                bool isNewIP = false;
+                {
+                    std::lock_guard<std::mutex> lock(ipMutex_);
+                    isNewIP = connectedIPs_.insert(clientAddr).second;
                 }
+
+                // Only log when a NEW external device connects
+                if (isNewIP) {
+                    if (useAuth_) {
+                        std::cout << "[CONNECTED] " << clientAddr << " (authentication required)" << std::endl;
+                    } else {
+                        std::cout << "[CONNECTED] " << clientAddr << std::endl;
+                    }
+                }
+
+                std::string welcomeMsg = "Welcome to BLADE Server!\n";
+                if (useAuth_) {
+                    welcomeMsg += "Please authenticate to continue.\n";
+                } else {
+                    welcomeMsg += "Authentication is disabled.\n";
+                }
+                (void)connectionHandler_->sendToClient(clientId, welcomeMsg);
+
+                // Start a thread to monitor this client for disconnection
+                std::thread([this, clientSocket, clientAddr]() {
+                    char buffer[1];
+                    // Wait for the socket to close
+                    while (running_) {
+                        int result = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer));
+                        if (result <= 0) {
+                            // Client disconnected
+                            std::lock_guard<std::mutex> lock(ipMutex_);
+                            connectedIPs_.erase(clientAddr);
+                            std::cout << "[DISCONNECTED] " << clientAddr << std::endl;
+                            break;
+                        }
+                    }
+                }).detach();
             }
-
-            // If auth is enabled, print the device IP after successful login.
-            // Wire this up to your actual auth flow:
-            //  - wherever you currently verify username/password,
-            //    call a method or callback that executes the block below.
-            //
-            // Example hook (pseudo):
-            // connectionHandler_->onAuthenticated(clientId, [clientAddr]{ ... });
-            //
-            // --- BEGIN AUTH-SUCCESS PRINT BLOCK ---
-            // {
-            //   std::lock_guard<std::mutex> lock(announcedMu);
-            //   if (announced.insert(clientAddr).second) {
-            //     std::cout << "[LOGGED IN DEVICE] " << clientAddr << "\n";
-            //   }
-            // }
-            // --- END AUTH-SUCCESS PRINT BLOCK ---
-
-            std::cout << "Client " << clientId << " connected. Total clients: "
-                      << connectionHandler_->getClientCount() << std::endl;
+            // If it's a local connection, just handle it silently (no logging, no welcome message)
         }
     }
 

@@ -44,6 +44,48 @@ run.bat --help            # Show help message
 
 ---
 
+### setup-firewall.bat / setup-firewall.ps1
+**⚠️ IMPORTANT:** Configures Windows Firewall to allow external device connections.
+
+**Usage:**
+```batch
+cd bin
+setup-firewall.bat    # Automatically requests Administrator privileges
+```
+Or run the PowerShell script directly as Administrator:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup-firewall.ps1
+```
+
+**What it does:**
+- Adds Windows Firewall rule for port 80 (HTTP web interface)
+- Adds Windows Firewall rule for port 8443 (main server)
+- Displays your local IP address for external access
+- **Must be run as Administrator**
+
+**Why is this needed?**
+By default, Windows Firewall blocks incoming connections. Without configuring firewall rules, external devices (phones, tablets, other PCs) cannot connect to your BLADE server.
+
+---
+
+### diagnose.ps1
+Diagnoses network and connectivity issues.
+
+**Usage:**
+```powershell
+cd bin
+powershell -ExecutionPolicy Bypass -File .\diagnose.ps1
+```
+
+**What it checks:**
+- Server is running
+- Ports 80 and 8443 are listening
+- Network adapters and IP addresses
+- Windows Firewall rules are configured
+- Localhost connectivity test
+
+---
+
 ### test-ip.bat
 Quick test script to verify IP address detection.
 
@@ -68,15 +110,49 @@ test-ip.bat
    build.bat
    ```
 
-2. **Run the server:**
+2. **Configure firewall (REQUIRED for external devices):**
+   ```batch
+   setup-firewall.bat
+   ```
+   ⚠️ **Must run as Administrator** - Right-click and select "Run as Administrator"
+
+3. **Run the server:**
    ```batch
    run.bat
    ```
 
-3. **Access the web interface:**
-   - Open browser and go to the IP address shown in console
-   - Default port: 8081 (HTTP web interface)
-   - Default credentials: admin / admin123
+4. **Access the web interface:**
+   - **From server PC:** `http://localhost` or `http://127.0.0.1`
+   - **From other devices:** `http://YOUR_SERVER_IP` (e.g., `http://192.168.1.100`)
+   - Find your IP: Run `ipconfig` and look for "IPv4 Address"
+   - Default credentials (if auth enabled): admin / admin123
+
+---
+
+## Troubleshooting External Device Connections
+
+If other devices can't connect (timeout error):
+
+1. **Run diagnostics:**
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\diagnose.ps1
+   ```
+
+2. **Configure firewall rules:**
+   ```batch
+   setup-firewall.bat
+   ```
+   (Must run as Administrator)
+
+3. **Common issues:**
+   - ❌ Devices not on same WiFi/network
+   - ❌ Router AP Isolation enabled
+   - ❌ VPN active on server PC
+   - ❌ Antivirus blocking connections
+   - ❌ Windows Firewall not configured
+
+4. **Detailed troubleshooting:**
+   See: `docs/NETWORK-ACCESS-FIX.md`
 
 ---
 
