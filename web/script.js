@@ -128,14 +128,6 @@ class BladeApp {
                 this.sendFiles();
             });
         }
-
-        // Logout button
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                this.handleLogout();
-            });
-        }
     }
 
     handleLogin() {
@@ -201,11 +193,7 @@ class BladeApp {
         // Hide logout button if authentication is disabled
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
-            if (this.authConfig && this.authConfig.authEnabled) {
-                logoutBtn.style.display = 'block';
-            } else {
-                logoutBtn.style.display = 'none';
-            }
+            logoutBtn.style.display = 'none';
         }
 
         this.sessionStartTime = Date.now();

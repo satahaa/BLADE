@@ -69,9 +69,8 @@ void HTTPServer::run() {
     // Silently accept and handle HTTP requests (no logging of every request)
     while (running_) {
         std::string clientAddr;
-        SocketType clientSocket = NetworkUtils::acceptConnection(serverSocket, clientAddr);
-        
-        if (clientSocket != INVALID_SOCKET) {
+
+        if (SocketType clientSocket = NetworkUtils::acceptConnection(serverSocket, clientAddr); clientSocket != INVALID_SOCKET) {
             // Track this client connection if it's not localhost, and we have a server reference
             if (server_ && clientAddr != "127.0.0.1" && clientAddr != "::1" && clientAddr.find("127.") != 0) {
                 // Get server's own IP to filter it out

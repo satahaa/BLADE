@@ -102,8 +102,8 @@ void Server::trackHTTPConnection(const std::string& clientIP) {
     std::lock_guard<std::mutex> lock(ipMutex_);
 
     // Update the last activity timestamp for this client
-    auto now = std::chrono::steady_clock::now();
-    bool isNewIP = httpClientActivity_.find(clientIP) == httpClientActivity_.end();
+    const auto now = std::chrono::steady_clock::now();
+    const bool isNewIP = httpClientActivity_.find(clientIP) == httpClientActivity_.end();
     httpClientActivity_[clientIP] = now;
 
     // Add to connected IPs set
@@ -123,8 +123,7 @@ void Server::cleanupInactiveHTTPClients() {
 
         // Remove clients that haven't had activity in the last 10 seconds
         for (auto it = httpClientActivity_.begin(); it != httpClientActivity_.end();) {
-            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count();
-            if (elapsed > 10) {
+            if (const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count(); elapsed > 10) {
                 std::cout << "[HTTP CLIENT] " << it->first << " disconnected (timeout)" << std::endl;
                 connectedIPs_.erase(it->first);
                 it = httpClientActivity_.erase(it);
