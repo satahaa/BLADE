@@ -13,6 +13,9 @@ std::unique_ptr<blade::Server> g_server;
 void signalHandler(int signal) {
     std::cout << "\nReceived signal " << signal << ", shutting down..." << std::endl;
     if (g_server) {
+        // Give clients time to detect disconnection
+        std::cout << "Notifying clients of shutdown..." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
         g_server->stop();
     }
     exit(0);

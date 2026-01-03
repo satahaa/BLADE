@@ -1,8 +1,10 @@
 #include "Server.h"
 #include "NetworkUtils.h"
+#include "QRCodeGen.h"
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <windows.h>
 
 namespace blade {
 
@@ -65,6 +67,30 @@ bool Server::start() {
     std::cout << "Authentication: " << (useAuth_ ? "ENABLED" : "DISABLED") << std::endl;
     std::cout << "\nWaiting for client connections..." << std::endl;
     std::cout << "========================================\n" << std::endl;
+
+    // Display QR code for easy access
+    const std::string url = "http://" + ip;
+    try {
+        SetConsoleOutputCP(CP_UTF8);
+        qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+
+        std::cout << "\n+============================================================+" << std::endl;
+        std::cout << "|          Scan QR Code to Access Web Interface             |" << std::endl;
+        std::cout << "+============================================================+\n" << std::endl;
+
+        int border = 4;
+        for (int y = -border; y < qr.getSize() + border; y++) {
+            std::cout << "    ";
+            for (int x = -border; x < qr.getSize() + border; x++) {
+                std::cout << (qr.getModule(x, y) ? "\xE2\x96\x88\xE2\x96\x88" : "  ");
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << "\n              URL: " << url << "\n" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error generating QR code: " << e.what() << std::endl;
+    }
 
     return true;
 }
@@ -221,6 +247,16 @@ void Server::acceptConnections() {
     }
 
     NetworkUtils::closeSocket(serverSocket);
+}
+
+std::string Server::handleHeartbeat(const std::string& clientIP) {
+    std::lock_guard<std::mutex> lock(ipMutex_);
+
+    // Update the last activity timestamp for this client
+    httpClientActivity_[clientIP] = std::chrono::steady_clock::now();
+
+    // Return a simple JSON response
+    return R"({"status":"ok"})";
 }
 
 } // namespace blade

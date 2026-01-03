@@ -21,13 +21,7 @@ if exist blade.exe (
     echo Build successful!
     echo ========================================
     echo.
-    echo Copying required DLL files...
-    copy /Y E:\CLion 2025.2.3\bin\mingw\bin\libstdc++-6.dll .
-    copy /Y E:\CLion 2025.2.3\bin\mingw\bin\libgcc_s_seh-1.dll .
-    copy /Y E:\CLion 2025.2.3\bin\mingw\bin\libwinpthread-1.dll .
-
-    echo.
-    echo To run the server, use: ..\bin\run.bat
+    echo To run the server, use: ..\bin\blade.exe
 ) else (
     echo.
     echo ========================================

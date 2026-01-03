@@ -124,6 +124,28 @@ void HTTPServer::handleRequest(const SocketType clientSocket) const {
         path = path.substr(0, queryPos);
     }
 
+    // Handle heartbeat endpoint
+    if (path == "/api/heartbeat") {
+        // Get client IP from the request (you'll need to extract this from the socket)
+        // For now, we'll use a placeholder
+        std::string clientIP = "unknown";
+
+        if (server_) {
+            const std::string heartbeatResponse = server_->handleHeartbeat(clientIP);
+            std::string response = "HTTP/1.1 200 OK\r\n";
+            response += "Content-Type: application/json\r\n";
+            response += "Content-Length: " + std::to_string(heartbeatResponse.length()) + "\r\n";
+            response += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
+            response += "Pragma: no-cache\r\n";
+            response += "Expires: 0\r\n";
+            response += "Connection: close\r\n";
+            response += "\r\n";
+            response += heartbeatResponse;
+            (void)NetworkUtils::sendData(clientSocket, response);
+        }
+        return;
+    }
+
     // Handle auth config endpoint
     if (path == "/api/auth-config") {
         const std::string config = getAuthConfig();
@@ -213,6 +235,7 @@ std::string HTTPServer::getContentType(const std::string& path) {
     if (path.find(".png") != std::string::npos) return "image/png";
     if (path.find(".jpg") != std::string::npos || path.find(".jpeg") != std::string::npos) return "image/jpeg";
     if (path.find(".gif") != std::string::npos) return "image/gif";
+    if (path.find(".ico") != std::string::npos) return "image/x-icon";
     return "text/plain";
 }
 
@@ -271,5 +294,6 @@ std::string HTTPServer::getConnectedDevicesJson() const {
     json += "]}";
     return json;
 }
+
 
 } // namespace blade

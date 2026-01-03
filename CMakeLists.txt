@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(BLADE VERSION 1.0.0 LANGUAGES CXX)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -25,6 +25,7 @@ set(SOURCES
     src/ConnectionHandler.cpp
     src/HTTPServer.cpp
     src/NetworkUtils.cpp
+    src/QRCodeGen.cpp
 )
 
 # Header files
@@ -34,6 +35,7 @@ set(HEADERS
     include/ConnectionHandler.h
     include/HTTPServer.h
     include/NetworkUtils.h
+    include/QRCodeGen.h
 )
 
 # Create executable
@@ -44,6 +46,7 @@ if(WIN32)
     if(MINGW)
         # For MinGW, create a resource file to embed the manifest and icon
         set(MANIFEST_RC "${CMAKE_CURRENT_BINARY_DIR}/blade.rc")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
         file(WRITE ${MANIFEST_RC} "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/blade.ico\"\n1 24 \"${CMAKE_SOURCE_DIR}/blade.manifest\"\n")
 
         # Add the RC file to the target
@@ -71,12 +74,39 @@ elseif(UNIX)
     target_link_libraries(blade PRIVATE pthread)
 endif()
 
-# Copy web folder to build directory
+# Create bin directory if it doesn't exist
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+
+# Copy blade.exe to bin folder after successful build
+add_custom_command(TARGET blade POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:blade>
+        ${CMAKE_SOURCE_DIR}/bin/blade.exe
+    COMMENT "Copying blade.exe to bin folder..."
+)
+
+# Copy blade.ico to bin folder for web interface
+add_custom_command(TARGET blade POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/blade.ico
+        ${CMAKE_SOURCE_DIR}/bin/blade.ico
+    COMMENT "Copying blade.ico to bin folder..."
+)
+
+# Copy web directory to bin folder after successful build
 add_custom_command(TARGET blade POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/web
-    ${CMAKE_CURRENT_BINARY_DIR}/web
-    COMMENT "Copying web files to build directory"
+        ${CMAKE_SOURCE_DIR}/web
+        ${CMAKE_SOURCE_DIR}/bin/web
+    COMMENT "Copying web directory to bin folder..."
+)
+
+# Copy blade.ico to bin/web folder for web interface
+add_custom_command(TARGET blade POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/blade.ico
+        ${CMAKE_SOURCE_DIR}/bin/web/blade.ico
+    COMMENT "Copying blade.ico to bin/web folder..."
 )
 
 # Installation

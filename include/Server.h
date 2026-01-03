@@ -77,6 +77,13 @@ public:
      */
     void trackHTTPConnection(const std::string& clientIP);
 
+    /**
+     * @brief Handle heartbeat endpoint request
+     * @param clientIP IP address of the client making the request
+     * @return JSON response string
+     */
+    std::string handleHeartbeat(const std::string& clientIP);
+
 private:
     int port_;
     bool useAuth_;
