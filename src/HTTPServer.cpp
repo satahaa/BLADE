@@ -1,7 +1,7 @@
 #include "HTTPServer.h"
 #include "Server.h"
 #include "NetworkUtils.h"
-#include <iostream>
+#include "Logger.h"
 #include <fstream>
 #include <sstream>
 #include <utility>
@@ -12,9 +12,9 @@ HTTPServer::HTTPServer(const int port, std::string webRoot, Server* server, cons
     : port_(port), webRoot_(std::move(webRoot)), running_(false), server_(server),
       useAuth_(useAuth), username_(std::move(username)), password_(std::move(password))
 {
-    std::cout << "[DEBUG] HTTPServer constructor - useAuth_: " << (useAuth_ ? "true" : "false")
-              << ", username_: '" << username_ << "', password_: '" << password_ << "'" << std::endl;
-    std::cout << "HTTP Server initialized on port " << port_ << std::endl;
+    Logger::getInstance().debug("HTTPServer constructor - useAuth_: " + std::string(useAuth_ ? "true" : "false") +
+                                ", username_: '" + username_ + "', password_: '" + password_ + "'");
+    Logger::getInstance().info("HTTP Server initialized on port " + std::to_string(port_));
 }
 
 HTTPServer::~HTTPServer() {
@@ -47,20 +47,20 @@ bool HTTPServer::isRunning() const {
 void HTTPServer::run() {
     const SocketType serverSocket = NetworkUtils::createSocket();
     if (serverSocket == INVALID_SOCKET) {
-        std::cerr << "Failed to create HTTP server socket" << std::endl;
+        Logger::getInstance().error("Failed to create HTTP server socket");
         running_ = false;
         return;
     }
     
     if (!NetworkUtils::bindSocket(serverSocket, port_)) {
-        std::cerr << "Failed to bind HTTP server to port " << port_ << std::endl;
+        Logger::getInstance().error("Failed to bind HTTP server to port " + std::to_string(port_));
         NetworkUtils::closeSocket(serverSocket);
         running_ = false;
         return;
     }
     
     if (!NetworkUtils::listenSocket(serverSocket)) {
-        std::cerr << "Failed to listen on HTTP server socket" << std::endl;
+        Logger::getInstance().error("Failed to listen on HTTP server socket");
         NetworkUtils::closeSocket(serverSocket);
         running_ = false;
         return;
@@ -253,7 +253,7 @@ std::string HTTPServer::loadFile(const std::string& path) {
 
     // Limit file size to 10MB to prevent memory issues
     if (fileSize > 10 * 1024 * 1024) {
-        std::cerr << "File too large: " << path << " (" << fileSize << " bytes)" << std::endl;
+        Logger::getInstance().error("File too large: " + path + " (" + std::to_string(fileSize) + " bytes)");
         return "";
     }
 
@@ -272,8 +272,7 @@ std::string HTTPServer::getAuthConfig() const {
     }
     json += "}";
 
-    // Debug logging
-    std::cout << "[DEBUG] Auth config: " << json << std::endl;
+    Logger::getInstance().debug("Auth config: " + json);
 
     return json;
 }

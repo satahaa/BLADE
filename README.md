@@ -1,15 +1,40 @@
 # BLADE - Bi-Directional LAN Asset Distribution Engine
 
-BLADE is a high-performance, C++ based local network file transfer system that enables secure data sharing between devices on the same LAN. Built with modern C++17 and featuring a beautiful web-based GUI, BLADE provides an efficient, low-level solution for PC-to-PC and PC-to-Mobile file transfers.
+BLADE is a high-performance, C++ based local network file transfer system that enables secure data sharing between devices on the same LAN. Built with modern C++23 and featuring both a beautiful web-based interface and an elegant Qt GUI, BLADE provides an efficient, low-level solution for PC-to-PC and PC-to-Mobile file transfers.
 
 ## Features
 
 - 🚀 **High Performance**: Written in C++ for maximum efficiency and low-level control
+- 🖥️ **Dual Interface**: Choose between CLI or elegant Qt GUI application
 - 🔐 **Secure Authentication**: Optional authentication system to protect your network
 - 🌐 **Web-Based GUI**: Beautiful HTML/CSS/JavaScript interface accessible from any device
+- 📱 **QR Code Access**: Scan QR code to instantly connect from mobile devices
 - 🔌 **Easy Connection**: Simple port-based networking with automatic discovery
 - 💻 **Cross-Platform**: Works on Windows, Linux, and macOS
 - 📦 **CMake Build System**: Professional build configuration for CLion and other IDEs
+
+## User Interfaces
+
+### Qt GUI Application
+- **Elegant login screen** with BLADE logo
+- **Two authentication modes**: With or without login
+- **Automatic QR code generation** for easy mobile access
+- **Modern design** with dark theme and glassmorphic effects
+- **Real-time server status** display
+
+**📖 See [GUI-README.md](docs/GUI-README.md) for detailed GUI documentation**
+
+### Web Interface
+- **Responsive design** for desktop and mobile
+- **File type icons** for images, videos, audio, documents
+- **Drag-and-drop** file upload
+- **Connection status** indicator
+- **Device management** view
+
+### Command Line Interface
+- **Traditional CLI** for server management
+- **Debug logging** for troubleshooting
+- **Command-line arguments** for automation
 
 ## Architecture
 
@@ -23,13 +48,39 @@ BLADE consists of several key components:
 
 ## Prerequisites
 
+### For CLI Version
 - CMake 3.15 or higher
-- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- C++23 compatible compiler (GCC 11+, Clang 14+, MSVC 2019+)
 - Operating System: Windows, Linux, or macOS
+
+### For GUI Version (Optional)
+- All CLI prerequisites
+- Qt6 (6.5 or later) with Core, Widgets, and Gui modules
+- Qt should be in PATH or CMAKE_PREFIX_PATH set
 
 ## Building the Project
 
-### Using CMake
+### Quick Build (GUI + CLI)
+
+**Windows:**
+```powershell
+# Run the build script (auto-detects Qt)
+.\build_gui.bat
+```
+
+**Manual Build:**
+```bash
+# Configure with Qt auto-detection
+mkdir build && cd build
+cmake .. -G "MinGW Makefiles"
+cmake --build . --config Release
+
+# Outputs:
+# - bin/blade.exe (CLI version - always built)
+# - bin/blade_gui.exe (GUI version - if Qt6 found)
+```
+
+### Building CLI Only
 
 ```bash
 # Clone the repository
@@ -44,7 +95,7 @@ cd build
 cmake ..
 cmake --build .
 
-# The executable will be in the build directory
+# The executable will be in bin/blade.exe
 ```
 
 ### Using CLion

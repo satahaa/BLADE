@@ -1,0 +1,253 @@
+/* BLADE Application Stylesheet - Matching Web Interface Aesthetics */
+
+/* Color Variables (matching web interface)
+   --primary-color: #4b5563 (gray-600)
+   --background-color: #0a0a0a
+   --card-background: #1a1a1a
+   --text-color: #e5e7eb
+   --text-secondary: #9ca3af
+   --border-color: #374151
+   --accent-silver: #d4d4d8
+*/
+
+/* Main Window Background */
+QMainWindow {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #0a0a0a,
+        stop:1 #1a1a1a);
+}
+
+QWidget#loginView, QWidget#serverView {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #0a0a0a,
+        stop:1 #1a1a1a);
+}
+
+/* Typography - Title (Space Grotesk style) */
+QLabel#title {
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+    font-size: 48px;
+    font-weight: 600;
+    color: #d4d4d8;
+    letter-spacing: -1.5px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #d4d4d8,
+        stop:1 #71717a);
+}
+
+QLabel#subtitle {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    color: #9ca3af;
+    letter-spacing: -0.2px;
+    margin-top: 5px;
+}
+
+/* Form Container - Matching card style */
+QWidget#formWidget {
+    background: #1a1a1a;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 40px;
+}
+
+/* Form Labels - DM Sans style */
+QLabel#formLabel {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: #9ca3af;
+    letter-spacing: -0.15px;
+}
+
+/* Input Fields - Clean modern style */
+QLineEdit {
+    background: #0a0a0a;
+    border: 1px solid #374151;
+    border-radius: 5px;
+    padding: 12px;
+    color: #e5e7eb;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: -0.15px;
+    selection-background-color: #4b5563;
+}
+
+QLineEdit:focus {
+    border: 1px solid #4b5563;
+    background: #111111;
+}
+
+QLineEdit:hover {
+    border: 1px solid #52525b;
+}
+
+/* Primary Button - Gray theme matching web */
+QPushButton#primaryButton {
+    background: #4b5563;
+    border: none;
+    border-radius: 5px;
+    padding: 12px 24px;
+    color: #ffffff;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.15px;
+}
+
+QPushButton#primaryButton:hover {
+    background: #374151;
+}
+
+QPushButton#primaryButton:pressed {
+    background: #1f2937;
+}
+
+/* Secondary Button - Outlined style */
+QPushButton#secondaryButton {
+    background: #4b5563;
+    border: none;
+    border-radius: 5px;
+    padding: 12px 24px;
+    color: #ffffff;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.15px;
+}
+
+QPushButton#secondaryButton:hover {
+    background: #374151;
+}
+
+QPushButton#secondaryButton:pressed {
+    background: #1f2937;
+}
+
+/* Server Status Label - Success state */
+QLabel#serverStatus {
+    font-family: 'Segoe UI', 'Consolas', monospace;
+    font-size: 28px;
+    font-weight: 400;
+    color: #10b981;
+    letter-spacing: 0.5px;
+}
+
+/* QR Code Container - Clean card */
+QWidget#qrContainer {
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+/* URL Label - Monospace tech style */
+QLabel#urlLabel {
+    font-family: 'Consolas', 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: #d4d4d8;
+    background: rgba(75, 85, 99, 0.2);
+    border: 1px solid #4b5563;
+    border-radius: 5px;
+    padding: 15px 30px;
+}
+
+/* Port Info Label */
+QLabel#portInfo {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #9ca3af;
+    letter-spacing: 0.3px;
+}
+
+/* General Info Label */
+QLabel#infoLabel {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #6b7280;
+    letter-spacing: -0.1px;
+}
+
+/* Scrollbar Styling - Minimal dark theme */
+QScrollBar:vertical {
+    background: #0a0a0a;
+    width: 10px;
+    border: none;
+}
+
+QScrollBar::handle:vertical {
+    background: #374151;
+    border-radius: 5px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #4b5563;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background: #0a0a0a;
+    height: 10px;
+    border: none;
+}
+
+QScrollBar::handle:horizontal {
+    background: #374151;
+    border-radius: 5px;
+    min-width: 20px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #4b5563;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* Tooltip Styling */
+QToolTip {
+    background: #1a1a1a;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px;
+}
+
+/* Status indicator style (for future use) */
+QLabel#statusIndicator {
+    background: #10b981;
+    border-radius: 6px;
+    min-width: 12px;
+    max-width: 12px;
+    min-height: 12px;
+    max-height: 12px;
+}
+
+QLabel#statusIndicator[status="disconnected"] {
+    background: #ef4444;
+}
+
+/* Disabled state */
+QPushButton:disabled {
+    background: #6b7280;
+    color: #9ca3af;
+}
+
+QLineEdit:disabled {
+    background: #111111;
+    color: #6b7280;
+    border: 1px solid #374151;
+}
+
+

@@ -1,7 +1,7 @@
 #include "Server.h"
 #include "NetworkUtils.h"
 #include "QRCodeGen.h"
-#include <iostream>
+#include "Logger.h"
 #include <thread>
 #include <vector>
 #include <windows.h>
@@ -12,14 +12,13 @@ Server::Server(const int port, bool useAuth, const std::string& username, const 
     : port_(port), useAuth_(useAuth), running_(false) {
     authManager_ = std::make_unique<AuthenticationManager>();
 
-    // Debug logging
-    std::cout << "[DEBUG] Server constructor - useAuth: " << (useAuth ? "true" : "false")
-              << ", username: '" << username << "', password: '" << password << "'" << std::endl;
+    Logger::getInstance().debug("Server constructor - useAuth: " + std::string(useAuth ? "true" : "false") +
+                                ", username: '" + username + "', password: '" + password + "'");
 
     // Register user credentials if authentication is enabled
     if (useAuth_ && !username.empty() && !password.empty()) {
         if (!authManager_->addUser(username, password)) {
-            std::cerr << "Warning: Failed to add user credentials" << std::endl;
+            Logger::getInstance().warning("Failed to add user credentials");
         }
     }
 
@@ -37,7 +36,7 @@ bool Server::start() {
     }
     
     if (!NetworkUtils::initialize()) {
-        std::cerr << "Failed to initialize network subsystem" << std::endl;
+        Logger::getInstance().error("Failed to initialize network subsystem");
         return false;
     }
     
@@ -45,7 +44,7 @@ bool Server::start() {
     
     // Start HTTP server for web interface
     if (!httpServer_->start()) {
-        std::cerr << "Warning: HTTP server failed to start" << std::endl;
+        Logger::getInstance().warning("HTTP server failed to start");
     }
     
     // Start accepting connections in a separate thread
@@ -58,15 +57,14 @@ bool Server::start() {
 
     const std::string ip = NetworkUtils::getLocalIPAddress();
 
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "   BLADE Server Started Successfully" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "\nWeb Interface Access:" << std::endl;
-    std::cout << "  http://" << ip << std::endl;
-    std::cout << "\nFile Transfer Port: " << port_ << std::endl;
-    std::cout << "Authentication: " << (useAuth_ ? "ENABLED" : "DISABLED") << std::endl;
-    std::cout << "\nWaiting for client connections..." << std::endl;
-    std::cout << "========================================\n" << std::endl;
+    Logger::getInstance().info("========================================");
+    Logger::getInstance().info("   BLADE Server Started Successfully");
+    Logger::getInstance().info("========================================");
+    Logger::getInstance().info("Web Interface Access: http://" + ip);
+    Logger::getInstance().info("File Transfer Port: " + std::to_string(port_));
+    Logger::getInstance().info("Authentication: " + std::string(useAuth_ ? "ENABLED" : "DISABLED"));
+    Logger::getInstance().info("Waiting for client connections...");
+    Logger::getInstance().info("========================================");
 
     // Display QR code for easy access
     const std::string url = "http://" + ip;
@@ -74,22 +72,24 @@ bool Server::start() {
         SetConsoleOutputCP(CP_UTF8);
         qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
 
-        std::cout << "\n+============================================================+" << std::endl;
-        std::cout << "|          Scan QR Code to Access Web Interface             |" << std::endl;
-        std::cout << "+============================================================+\n" << std::endl;
+        Logger::getInstance().info("+============================================================+");
+        Logger::getInstance().info("|          Scan QR Code to Access Web Interface             |");
+        Logger::getInstance().info("+============================================================+");
 
         int border = 4;
         for (int y = -border; y < qr.getSize() + border; y++) {
-            std::cout << "    ";
+            std::string line = "    ";
             for (int x = -border; x < qr.getSize() + border; x++) {
-                std::cout << (qr.getModule(x, y) ? "\xE2\x96\x88\xE2\x96\x88" : "  ");
+                line += (qr.getModule(x, y) ? "\xE2\x96\x88\xE2\x96\x88" : "  ");
             }
-            std::cout << std::endl;
+            Logger::getInstance().info(line);
         }
 
-        std::cout << "\n              URL: " << url << "\n" << std::endl;
+        Logger::getInstance().info("");
+        Logger::getInstance().info("              URL: " + url);
+        Logger::getInstance().info("");
     } catch (const std::exception& e) {
-        std::cerr << "Error generating QR code: " << e.what() << std::endl;
+        Logger::getInstance().error("Error generating QR code: " + std::string(e.what()));
     }
 
     return true;
@@ -104,7 +104,7 @@ void Server::stop() {
     httpServer_->stop();
     NetworkUtils::cleanup();
     
-    std::cout << "Server stopped" << std::endl;
+    Logger::getInstance().info("Server stopped");
 }
 
 bool Server::isRunning() const {
@@ -136,7 +136,7 @@ void Server::trackHTTPConnection(const std::string& clientIP) {
     connectedIPs_.insert(clientIP);
 
     if (isNewIP) {
-        std::cout << "[HTTP CLIENT] " << clientIP << " connected" << std::endl;
+        Logger::getInstance().info("[HTTP CLIENT] " + clientIP + " connected");
     }
 }
 
@@ -150,7 +150,7 @@ void Server::cleanupInactiveHTTPClients() {
         // Remove clients that haven't had activity in the last 10 seconds
         for (auto it = httpClientActivity_.begin(); it != httpClientActivity_.end();) {
             if (const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count(); elapsed > 10) {
-                std::cout << "[HTTP CLIENT] " << it->first << " disconnected (timeout)" << std::endl;
+                Logger::getInstance().info("[HTTP CLIENT] " + it->first + " disconnected (timeout)");
                 connectedIPs_.erase(it->first);
                 it = httpClientActivity_.erase(it);
             } else {
@@ -163,20 +163,20 @@ void Server::cleanupInactiveHTTPClients() {
 void Server::acceptConnections() {
     const SocketType serverSocket = NetworkUtils::createSocket();
     if (serverSocket == INVALID_SOCKET) {
-        std::cerr << "Failed to create server socket" << std::endl;
+        Logger::getInstance().error("Failed to create server socket");
         running_ = false;
         return;
     }
     
     if (!NetworkUtils::bindSocket(serverSocket, port_)) {
-        std::cerr << "Failed to bind to port " << port_ << std::endl;
+        Logger::getInstance().error("Failed to bind to port " + std::to_string(port_));
         NetworkUtils::closeSocket(serverSocket);
         running_ = false;
         return;
     }
     
     if (!NetworkUtils::listenSocket(serverSocket)) {
-        std::cerr << "Failed to listen on socket" << std::endl;
+        Logger::getInstance().error("Failed to listen on socket");
         NetworkUtils::closeSocket(serverSocket);
         running_ = false;
         return;
@@ -212,9 +212,9 @@ void Server::acceptConnections() {
                 // Only log when a NEW external device connects
                 if (isNewIP) {
                     if (useAuth_) {
-                        std::cout << "[CONNECTED] " << clientAddr << " (authentication required)" << std::endl;
+                        Logger::getInstance().info("[CONNECTED] " + clientAddr + " (authentication required)");
                     } else {
-                        std::cout << "[CONNECTED] " << clientAddr << std::endl;
+                        Logger::getInstance().info("[CONNECTED] " + clientAddr);
                     }
                 }
 
@@ -236,7 +236,7 @@ void Server::acceptConnections() {
                             // Client disconnected
                             std::lock_guard<std::mutex> lock(ipMutex_);
                             connectedIPs_.erase(clientAddr);
-                            std::cout << "[DISCONNECTED] " << clientAddr << std::endl;
+                            Logger::getInstance().info("[DISCONNECTED] " + clientAddr);
                             break;
                         }
                     }
