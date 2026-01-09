@@ -1,10 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>qml/main.qml</file>
-        <file>qml/LoginView.qml</file>
-        <file>qml/ServerView.qml</file>
-        <file>qml/MaterialButton.qml</file>
-        <file>qml/IconImage.qml</file>
         <file>icons/lock.svg</file>
         <file>icons/rocket_launch.svg</file>
         <file>icons/person.svg</file>
@@ -16,7 +11,7 @@
         <file>icons/phone_android.svg</file>
         <file>icons/check_circle.svg</file>
         <file>blade.ico</file>
-        <file>styles.qss</file>
+        <file>styles-widgets.qss</file>
     </qresource>
 </RCC>
 

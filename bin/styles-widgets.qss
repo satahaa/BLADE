@@ -1,0 +1,201 @@
+/* BLADE - Qt Widgets Stylesheet */
+/* Global Styles */
+QWidget {
+    background-color: #0a0a0a;
+    color: #e5e7eb;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+}
+
+QMainWindow {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0a0a0a, stop:1 #1a1a1a);
+}
+
+/* Title Labels */
+#titleLabel {
+    font-size: 56px;
+    font-weight: 600;
+    color: #d4d4d8;
+    letter-spacing: -1.5px;
+}
+
+#subtitleLabel, #serverSubtitle {
+    font-size: 16px;
+    color: #9ca3af;
+    letter-spacing: -0.2px;
+}
+
+#serverTitle {
+    font-size: 32px;
+    font-weight: 600;
+    color: #d4d4d8;
+}
+
+/* Form Container */
+#formContainer {
+    background-color: #1a1a1a;
+    border: 1px solid #374151;
+    border-radius: 12px;
+}
+
+#fieldLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: #9ca3af;
+}
+
+/* Input Fields */
+#inputField {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    padding: 12px;
+    color: #e5e7eb;
+    font-size: 16px;
+    selection-background-color: #4b5563;
+}
+
+#inputField:focus {
+    border-color: #4b5563;
+    outline: none;
+}
+
+/* Buttons */
+#primaryButton {
+    background-color: #4b5563;
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 16px;
+}
+
+#primaryButton:hover {
+    background-color: #374151;
+}
+
+#primaryButton:pressed {
+    background-color: #1f2937;
+}
+
+#secondaryButton {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 16px;
+}
+
+#secondaryButton:hover {
+    background-color: #1a1a1a;
+}
+
+#secondaryButton:pressed {
+    background-color: #111111;
+}
+
+/* Status Indicator */
+#statusIndicator {
+    background-color: #1a1a1a;
+    border: 2px solid #10b981;
+    border-radius: 12px;
+    padding: 12px 24px;
+}
+
+#statusIcon {
+    font-size: 24px;
+    color: #10b981;
+    font-weight: bold;
+}
+
+#statusText {
+    font-size: 18px;
+    font-weight: 600;
+    color: #10b981;
+}
+
+/* URL Container */
+#urlContainer, #qrContainer {
+    background-color: #1a1a1a;
+    border: 1px solid #374151;
+    border-radius: 12px;
+}
+
+#sectionTitle {
+    font-size: 18px;
+    font-weight: 600;
+    color: #d4d4d8;
+}
+
+#urlText {
+    font-size: 24px;
+    font-weight: 500;
+    color: #10b981;
+    padding: 12px;
+    background-color: #0a0a0a;
+    border-radius: 6px;
+}
+
+#copyButton {
+    background-color: #4b5563;
+    border: none;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px;
+}
+
+#copyButton:hover {
+    background-color: #374151;
+}
+
+#copyButton:pressed {
+    background-color: #1f2937;
+}
+
+/* QR Code */
+#qrCode {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+/* Instructions */
+#instructions {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* Message Box */
+QMessageBox {
+    background-color: #1a1a1a;
+}
+
+QMessageBox QLabel {
+    color: #e5e7eb;
+    font-size: 14px;
+}
+
+QMessageBox QPushButton {
+    background-color: #4b5563;
+    border: none;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 16px;
+    min-width: 80px;
+}
+
+QMessageBox QPushButton:hover {
+    background-color: #374151;
+}
+
+QMessageBox QPushButton:pressed {
+    background-color: #1f2937;
+}
+

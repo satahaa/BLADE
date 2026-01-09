@@ -8,7 +8,7 @@
 
 namespace blade {
 
-Server::Server(const int port, bool useAuth, const std::string& username, const std::string& password)
+Server::Server(const int port, const bool useAuth, const std::string& username, const std::string& password)
     : port_(port), useAuth_(useAuth), running_(false) {
     authManager_ = std::make_unique<AuthenticationManager>();
 
@@ -17,7 +17,7 @@ Server::Server(const int port, bool useAuth, const std::string& username, const 
 
     // Register user credentials if authentication is enabled
     if (useAuth_ && !username.empty() && !password.empty()) {
-        if (!authManager_->addUser(username, password)) {
+        if (authManager_ && !authManager_->addUser(username, password)) {
             Logger::getInstance().warning("Failed to add user credentials");
         }
     }
@@ -66,31 +66,6 @@ bool Server::start() {
     Logger::getInstance().info("Waiting for client connections...");
     Logger::getInstance().info("========================================");
 
-    // Display QR code for easy access
-    const std::string url = "http://" + ip;
-    try {
-        SetConsoleOutputCP(CP_UTF8);
-        qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-
-        Logger::getInstance().info("+============================================================+");
-        Logger::getInstance().info("|          Scan QR Code to Access Web Interface             |");
-        Logger::getInstance().info("+============================================================+");
-
-        int border = 4;
-        for (int y = -border; y < qr.getSize() + border; y++) {
-            std::string line = "    ";
-            for (int x = -border; x < qr.getSize() + border; x++) {
-                line += (qr.getModule(x, y) ? "\xE2\x96\x88\xE2\x96\x88" : "  ");
-            }
-            Logger::getInstance().info(line);
-        }
-
-        Logger::getInstance().info("");
-        Logger::getInstance().info("              URL: " + url);
-        Logger::getInstance().info("");
-    } catch (const std::exception& e) {
-        Logger::getInstance().error("Error generating QR code: " + std::string(e.what()));
-    }
 
     return true;
 }
@@ -121,7 +96,7 @@ void Server::setAuthRequired(const bool useAuth) {
 
 std::vector<std::string> Server::getConnectedDevices() const {
     std::lock_guard<std::mutex> lock(ipMutex_);
-    return std::vector<std::string>(connectedIPs_.begin(), connectedIPs_.end());
+    return std::vector(connectedIPs_.begin(), connectedIPs_.end());
 }
 
 void Server::trackHTTPConnection(const std::string& clientIP) {
@@ -129,7 +104,7 @@ void Server::trackHTTPConnection(const std::string& clientIP) {
 
     // Update the last activity timestamp for this client
     const auto now = std::chrono::steady_clock::now();
-    const bool isNewIP = httpClientActivity_.find(clientIP) == httpClientActivity_.end();
+    const bool isNewIP = !httpClientActivity_.contains(clientIP);
     httpClientActivity_[clientIP] = now;
 
     // Add to connected IPs set
@@ -187,9 +162,8 @@ void Server::acceptConnections() {
 
     while (running_) {
         std::string clientAddr;
-        SocketType clientSocket = NetworkUtils::acceptConnection(serverSocket, clientAddr);
 
-        if (clientSocket != INVALID_SOCKET) {
+        if (SocketType clientSocket = NetworkUtils::acceptConnection(serverSocket, clientAddr); clientSocket != INVALID_SOCKET) {
             const int clientId = connectionHandler_->addClient(clientSocket, clientAddr);
 
             // Filter out local connections completely:
@@ -231,10 +205,9 @@ void Server::acceptConnections() {
                     char buffer[1];
                     // Wait for the socket to close
                     while (running_) {
-                        int result = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer));
-                        if (result <= 0) {
+                        if (const int result = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer)); result <= 0) {
                             // Client disconnected
-                            std::lock_guard<std::mutex> lock(ipMutex_);
+                            std::lock_guard lock(ipMutex_);
                             connectedIPs_.erase(clientAddr);
                             Logger::getInstance().info("[DISCONNECTED] " + clientAddr);
                             break;
@@ -250,7 +223,7 @@ void Server::acceptConnections() {
 }
 
 std::string Server::handleHeartbeat(const std::string& clientIP) {
-    std::lock_guard<std::mutex> lock(ipMutex_);
+    std::lock_guard lock(ipMutex_);
 
     // Update the last activity timestamp for this client
     httpClientActivity_[clientIP] = std::chrono::steady_clock::now();

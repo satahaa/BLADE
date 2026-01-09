@@ -70,8 +70,15 @@ void Logger::error(const std::string& message) {
     log(LogLevel::ERR, message);
 }
 
+void Logger::flush() {
+    std::lock_guard lock(mutex_);
+    if (logFile_.is_open()) {
+        logFile_.flush();
+    }
+}
+
 void Logger::setLogFile(const std::string& filename) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
 
     if (logFile_.is_open()) {
         logFile_.close();
@@ -81,7 +88,7 @@ void Logger::setLogFile(const std::string& filename) {
     logFile_.open(logFilePath_, std::ios::app);
 }
 
-std::string Logger::getLevelString(LogLevel level) {
+std::string Logger::getLevelString(const LogLevel level) {
     switch (level) {
         case LogLevel::DEBUG:   return "DEBUG";
         case LogLevel::INFO:    return "INFO";

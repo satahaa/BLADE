@@ -25,7 +25,7 @@ else()
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Network Qml Quick Svg)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg)
 
 if(Qt6_FOUND)
     message(STATUS "Qt6 found successfully!")
@@ -39,6 +39,9 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 set(SOURCES
     src/main.cpp
     src/Application.cpp
+    src/MainWindow.cpp
+    src/LoginWidget.cpp
+    src/ServerWidget.cpp
     src/Server.cpp
     src/AuthenticationManager.cpp
     src/ConnectionHandler.cpp
@@ -50,6 +53,9 @@ set(SOURCES
 
 set(HEADERS
     include/Application.h
+    include/MainWindow.h
+    include/LoginWidget.h
+    include/ServerWidget.h
     include/Server.h
     include/AuthenticationManager.h
     include/ConnectionHandler.h
@@ -68,9 +74,8 @@ add_executable(blade ${SOURCES} ${HEADERS} ${RESOURCES})
 target_link_libraries(blade PRIVATE
     Qt6::Core
     Qt6::Gui
+    Qt6::Widgets
     Qt6::Network
-    Qt6::Qml
-    Qt6::Quick
     Qt6::Svg
 )
 
@@ -108,12 +113,12 @@ add_custom_command(TARGET blade POST_BUILD
         ${CMAKE_SOURCE_DIR}/blade.ico
         ${CMAKE_CURRENT_BINARY_DIR}/blade.ico
     COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/styles.qss
-        ${CMAKE_CURRENT_BINARY_DIR}/styles.qss
+        ${CMAKE_SOURCE_DIR}/styles-widgets.qss
+        ${CMAKE_CURRENT_BINARY_DIR}/styles-widgets.qss
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/web
         ${CMAKE_CURRENT_BINARY_DIR}/web
-    COMMENT "Copying blade.ico, styles.qss, and web directory to build folder..."
+    COMMENT "Copying blade.ico, styles-widgets.qss, and web directory to build folder..."
 )
 
 add_custom_command(TARGET blade POST_BUILD
@@ -128,7 +133,19 @@ if(WIN32)
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${CMAKE_PREFIX_PATH}/bin")
     if(WINDEPLOYQT_EXECUTABLE)
         add_custom_command(TARGET blade POST_BUILD
-            COMMAND ${WINDEPLOYQT_EXECUTABLE} --no-translations "${CMAKE_SOURCE_DIR}/bin/blade.exe"
+            COMMAND ${WINDEPLOYQT_EXECUTABLE}
+                --no-translations
+                --no-system-d3d-compiler
+                --no-opengl-sw
+                --no-compiler-runtime
+                "${CMAKE_SOURCE_DIR}/bin/blade.exe"
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6QuickControls2MaterialStyleImpl.dll"
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6QuickEffects.dll"
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6QuickShapes.dll"
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6Widgets.dll"
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/imageformats/qgif.dll"
+            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/imageformats/qjpeg.dll"
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_SOURCE_DIR}/bin/qmltooling"
             COMMENT "Deploying Qt dependencies to bin folder..."
         )
     else()
@@ -152,9 +169,9 @@ add_custom_command(TARGET blade POST_BUILD
         ${CMAKE_SOURCE_DIR}/blade.ico
         ${CMAKE_SOURCE_DIR}/bin/blade.ico
     COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/styles.qss
-        ${CMAKE_SOURCE_DIR}/bin/styles.qss
-    COMMENT "Copying blade.ico and styles.qss to bin folder..."
+        ${CMAKE_SOURCE_DIR}/styles-widgets.qss
+        ${CMAKE_SOURCE_DIR}/bin/styles-widgets.qss
+    COMMENT "Copying blade.ico and styles-widgets.qss to bin folder..."
 )
 
 add_custom_command(TARGET blade POST_BUILD

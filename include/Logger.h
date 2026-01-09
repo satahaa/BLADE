@@ -24,6 +24,7 @@ public:
     void info(const std::string& message);
     void warning(const std::string& message);
     void error(const std::string& message);
+    void flush();
 
     void setLogFile(const std::string& filename);
 
@@ -33,8 +34,8 @@ private:
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
 
-    std::string getLevelString(LogLevel level);
-    std::string getCurrentTimestamp();
+    static std::string getLevelString(LogLevel level);
+    static std::string getCurrentTimestamp();
 
     std::ofstream logFile_;
     std::mutex mutex_;
