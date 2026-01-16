@@ -3,6 +3,8 @@
 #include "Logger.h"
 #include <QFile>
 #include <QIcon>
+#include <QMessageBox>
+#include <QDir>
 
 namespace blade {
 
@@ -10,24 +12,30 @@ Application::Application(int argc, char* argv[])
     : qapp_(std::make_unique<QApplication>(argc, argv))
     , mainWindow_(nullptr) {
 
-    QApplication::setOrganizationName("BLADE");
-    QApplication::setOrganizationDomain("blade.local");
-    QApplication::setApplicationName("BLADE - Bi-Directional LAN Asset Distribution Engine");
+    try {
+        QApplication::setOrganizationName("BLADE");
+        QApplication::setOrganizationDomain("blade.local");
+        QApplication::setApplicationName("BLADE");
 
-    // Set application icon
-    if (QIcon appIcon(":/blade.ico"); !appIcon.isNull()) {
-        QApplication::setWindowIcon(appIcon);
-    }
+        // Set application icon
+        if (QIcon appIcon(":/blade.ico"); !appIcon.isNull()) {
+            QApplication::setWindowIcon(appIcon);
+        }
 
-    Logger::getInstance().info("=== BLADE Application Starting (Qt Widgets) ===");
+        Logger::getInstance().info("=== BLADE Application Starting (Qt Widgets) ===");
 
-    // Load stylesheet
-    if (QFile styleFile(":/styles-widgets.qss"); styleFile.open(QFile::ReadOnly)) {
-        const QString styleSheet = QLatin1String(styleFile.readAll());
-        qapp_->setStyleSheet(styleSheet);
-        Logger::getInstance().info("Stylesheet loaded successfully");
-    } else {
-        Logger::getInstance().warning("Failed to load stylesheet");
+        // Load stylesheet from current working directory
+        if (QFile styleFile(QDir::current().filePath("styles-widgets.qss")); styleFile.open(QFile::ReadOnly)) {
+            const QString styleSheet = QLatin1String(styleFile.readAll());
+            qapp_->setStyleSheet(styleSheet);
+            Logger::getInstance().info("Stylesheet loaded successfully from CWD");
+        } else {
+            Logger::getInstance().warning("Failed to load stylesheet from CWD");
+        }
+    } catch (const std::exception& e) {
+        QMessageBox::critical(nullptr, "Application Error",
+            QString("Failed to initialize application: %1").arg(e.what()));
+        throw;
     }
 }
 
@@ -46,6 +54,8 @@ int Application::run() {
 
     } catch (const std::exception& e) {
         Logger::getInstance().error(std::string("Fatal error in run(): ") + e.what());
+        QMessageBox::critical(nullptr, "Fatal Error",
+            QString("Application error: %1").arg(e.what()));
         return 1;
     }
 }

@@ -1,0 +1,26 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "qt681-mingw64",
+      "displayName": "Qt 6.8.1 MinGW x64 (mingw_64)",
+      "description": "Configure using Qt 6.8.1 mingw_64 toolchain and MinGW Makefiles",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-qt-mingw.cmake",
+        "MINGW_ROOT": "C:/Qt/Tools/mingw1310_64",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.8.1/mingw_64",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "qt681-mingw64",
+      "configurePreset": "qt681-mingw64",
+      "description": "Build using the qt681-mingw64 configure preset",
+      "jobs": 4
+    }
+  ]
+}

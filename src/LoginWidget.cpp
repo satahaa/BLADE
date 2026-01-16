@@ -1,8 +1,4 @@
 #include "LoginWidget.h"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QPixmap>
 
 namespace blade {
 
@@ -11,39 +7,38 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
     mainLayout->setContentsMargins(50, 60, 50, 60);
     mainLayout->setSpacing(30);
 
-    // Add stretch at top
     mainLayout->addStretch(1);
 
-    // Logo
     auto* logoLabel = new QLabel(this);
-    logoLabel->setPixmap(QPixmap(":/blade.ico").scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    logoLabel->setPixmap(QPixmap(":/blade.png").scaled(120, 120, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     logoLabel->setAlignment(Qt::AlignCenter);
     logoLabel->setObjectName("logoLabel");
     mainLayout->addWidget(logoLabel, 0, Qt::AlignCenter);
 
-    // Title
     auto* titleLabel = new QLabel("BLADE", this);
     titleLabel->setObjectName("titleLabel");
     titleLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(titleLabel);
 
-    // Subtitle
-    auto* subtitleLabel = new QLabel("Local Network File Transfer", this);
+    auto* subtitleLabel = new QLabel("Bi-Directional LAN Asset Distribution Engine", this);
     subtitleLabel->setObjectName("subtitleLabel");
     subtitleLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(subtitleLabel);
 
     mainLayout->addSpacing(20);
 
-    // Form container
+    authModeCombo_ = new QComboBox(this);
+    authModeCombo_->addItem("Start Without Authentication");
+    authModeCombo_->addItem("Start With Authentication");
+    mainLayout->addWidget(authModeCombo_, 0, Qt::AlignCenter);
+
     auto* formWidget = new QWidget(this);
     formWidget->setObjectName("formContainer");
     auto* formLayout = new QVBoxLayout(formWidget);
     formLayout->setSpacing(20);
     formLayout->setContentsMargins(40, 40, 40, 40);
 
-    // Username
-    auto* usernameLabel = new QLabel("Username (Optional)", this);
+    auto* usernameLabel = new QLabel("Username:", this);
     usernameLabel->setObjectName("fieldLabel");
     formLayout->addWidget(usernameLabel);
 
@@ -53,8 +48,7 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
     usernameEdit_->setMinimumHeight(48);
     formLayout->addWidget(usernameEdit_);
 
-    // Password
-    auto* passwordLabel = new QLabel("Password (Optional)", this);
+    auto* passwordLabel = new QLabel("Password:", this);
     passwordLabel->setObjectName("fieldLabel");
     formLayout->addWidget(passwordLabel);
 
@@ -68,36 +62,34 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
     mainLayout->addWidget(formWidget);
     mainLayout->addSpacing(10);
 
-    // Buttons
     auto* buttonLayout = new QVBoxLayout();
     buttonLayout->setSpacing(15);
 
-    startAuthButton_ = new QPushButton("Start with Authentication", this);
-    startAuthButton_->setObjectName("primaryButton");
-    startAuthButton_->setMinimumHeight(56);
-    startAuthButton_->setCursor(Qt::PointingHandCursor);
-    buttonLayout->addWidget(startAuthButton_);
-
-    startNoAuthButton_ = new QPushButton("Start without Authentication", this);
-    startNoAuthButton_->setObjectName("secondaryButton");
-    startNoAuthButton_->setMinimumHeight(56);
-    startNoAuthButton_->setCursor(Qt::PointingHandCursor);
-    buttonLayout->addWidget(startNoAuthButton_);
+    startButton_ = new QPushButton("Start", this);
+    startButton_->setObjectName("primaryButton");
+    startButton_->setMinimumHeight(56);
+    startButton_->setCursor(Qt::PointingHandCursor);
+    mainLayout->addWidget(startButton_, 0, Qt::AlignCenter);
 
     mainLayout->addLayout(buttonLayout);
-
-    // Add stretch at bottom
     mainLayout->addStretch(1);
 
-    // Connect signals
-    connect(startAuthButton_, &QPushButton::clicked, this, [this]() {
-        emit startWithAuth(usernameEdit_->text(), passwordEdit_->text());
+    connect(authModeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        bool authEnabled = (index == 1);
+        usernameEdit_->setEnabled(authEnabled);
+        passwordEdit_->setEnabled(authEnabled);
+
+        startButton_->setText("Start");
+        startButton_->setVisible(true);
     });
 
-    connect(startNoAuthButton_, &QPushButton::clicked, this, [this]() {
-        emit startNoAuth();
+    connect(startButton_, &QPushButton::clicked, this, [this]() {
+        if (authModeCombo_->currentIndex() == 1) {
+            emit startWithAuth(usernameEdit_->text(), passwordEdit_->text());
+        } else {
+            emit startNoAuth();
+        }
     });
 }
 
 } // namespace blade
-

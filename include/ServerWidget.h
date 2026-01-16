@@ -12,7 +12,7 @@ class ServerWidget : public QWidget {
 public:
     explicit ServerWidget(QWidget* parent = nullptr);
 
-    void setServerUrl(const QString& url);
+    void setServerUrl(const QString& url) const;
 
 private:
     QLabel* statusLabel_;

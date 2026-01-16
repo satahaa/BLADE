@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(BLADE VERSION 1.0.0 LANGUAGES CXX)
 
+# NOTE: Compiler selection is handled via CMake toolchain file or IDE settings.
+# Do NOT set CMAKE_C_COMPILER / CMAKE_CXX_COMPILER here - it's too late after project().
+# Use cmake/toolchain-qt-mingw.cmake or configure your IDE's CMake profile.
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -20,9 +24,8 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 else()
     add_compile_options(-Wall -Wextra -pedantic)
-    # Static linking for MinGW
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -pthread")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    # NOTE: Do NOT force static libstdc++/libgcc for Qt on Windows/MinGW.
+    # It commonly causes runtime crashes / missing entry points.
 endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg)
@@ -69,7 +72,17 @@ set(RESOURCES
     resources.qrc
 )
 
-add_executable(blade ${SOURCES} ${HEADERS} ${RESOURCES})
+# Build as a GUI app on Windows.
+# For MinGW, using WIN32 may pull in Qt6EntryPoint which can fail to link depending on CRT.
+# Instead, build a normal executable and set the Windows subsystem explicitly.
+if(WIN32)
+    add_executable(blade ${SOURCES} ${HEADERS} ${RESOURCES})
+    if(MINGW)
+        target_link_options(blade PRIVATE "-mwindows")
+    endif()
+else()
+    add_executable(blade ${SOURCES} ${HEADERS} ${RESOURCES})
+endif()
 
 target_link_libraries(blade PRIVATE
     Qt6::Core
@@ -84,8 +97,6 @@ if(WIN32)
         set(MANIFEST_RC "${CMAKE_CURRENT_BINARY_DIR}/blade.rc")
         file(WRITE ${MANIFEST_RC} "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/blade.ico\"\n1 24 \"${CMAKE_SOURCE_DIR}/blade.manifest\"\n")
         target_sources(blade PRIVATE ${MANIFEST_RC})
-        # Hide console window using -mwindows
-        target_link_options(blade PRIVATE -mwindows)
     elseif(MSVC)
         set(MANIFEST_RC "${CMAKE_CURRENT_BINARY_DIR}/blade.rc")
         file(WRITE ${MANIFEST_RC} "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/blade.ico\"\n")
@@ -105,89 +116,85 @@ elseif(UNIX)
     target_link_libraries(blade PRIVATE pthread)
 endif()
 
-file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+# ---- Runtime layout / deployment ----
+set(DEPLOY_DIR "${CMAKE_SOURCE_DIR}/bin")
+file(MAKE_DIRECTORY "${DEPLOY_DIR}")
 
-# Copy blade.ico and web directory to build directory for development/debugging
+# Copy assets to build folder (dev) and to bin (runtime)
 add_custom_command(TARGET blade POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/blade.ico
-        ${CMAKE_CURRENT_BINARY_DIR}/blade.ico
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/styles-widgets.qss
-        ${CMAKE_CURRENT_BINARY_DIR}/styles-widgets.qss
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/blade.ico"
+        "$<TARGET_FILE_DIR:blade>/blade.ico"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/styles-widgets.qss"
+        "$<TARGET_FILE_DIR:blade>/styles-widgets.qss"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/web
-        ${CMAKE_CURRENT_BINARY_DIR}/web
-    COMMENT "Copying blade.ico, styles-widgets.qss, and web directory to build folder..."
+        "${CMAKE_SOURCE_DIR}/web"
+        "$<TARGET_FILE_DIR:blade>/web"
+    COMMENT "Copying runtime assets to build output folder..."
 )
 
+# Copy built exe into bin
 add_custom_command(TARGET blade POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        $<TARGET_FILE:blade>
-        ${CMAKE_SOURCE_DIR}/bin/blade.exe
-    COMMENT "Copying blade.exe to bin folder..."
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:blade>"
+        "${DEPLOY_DIR}/$<TARGET_FILE_NAME:blade>"
+    COMMENT "Copying blade executable to bin folder..."
 )
 
-# Deploy Qt dependencies
+# Deploy Qt dependencies.
+# IMPORTANT: run windeployqt on the *built* executable, then copy the produced DLLs/plugins to bin.
 if(WIN32)
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${CMAKE_PREFIX_PATH}/bin")
     if(WINDEPLOYQT_EXECUTABLE)
         add_custom_command(TARGET blade POST_BUILD
-            COMMAND ${WINDEPLOYQT_EXECUTABLE}
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}"
                 --no-translations
                 --no-system-d3d-compiler
                 --no-opengl-sw
-                --no-compiler-runtime
-                "${CMAKE_SOURCE_DIR}/bin/blade.exe"
-            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6QuickControls2MaterialStyleImpl.dll"
-            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6QuickEffects.dll"
-            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6QuickShapes.dll"
-            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/Qt6Widgets.dll"
-            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/imageformats/qgif.dll"
-            COMMAND ${CMAKE_COMMAND} -E rm -f "${CMAKE_SOURCE_DIR}/bin/imageformats/qjpeg.dll"
-            COMMAND ${CMAKE_COMMAND} -E rm -rf "${CMAKE_SOURCE_DIR}/bin/qmltooling"
-            COMMENT "Deploying Qt dependencies to bin folder..."
+                "$<TARGET_FILE:blade>"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "$<TARGET_FILE_DIR:blade>"
+                "${DEPLOY_DIR}"
+            COMMENT "Deploying Qt dependencies and copying runtime files to bin..."
+        )
+
+        # Also copy the MinGW runtime DLLs from the compiler's bin directory.
+        # This avoids 'Entry Point Not Found' crashes when multiple MinGW toolchains exist.
+        # Get the directory containing the C++ compiler
+        get_filename_component(MINGW_BIN_PATH "${CMAKE_CXX_COMPILER}" DIRECTORY)
+        message(STATUS "MinGW runtime DLLs will be copied from: ${MINGW_BIN_PATH}")
+
+        add_custom_command(TARGET blade POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${MINGW_BIN_PATH}/libstdc++-6.dll"
+                "${DEPLOY_DIR}/libstdc++-6.dll"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${MINGW_BIN_PATH}/libgcc_s_seh-1.dll"
+                "${DEPLOY_DIR}/libgcc_s_seh-1.dll"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${MINGW_BIN_PATH}/libwinpthread-1.dll"
+                "${DEPLOY_DIR}/libwinpthread-1.dll"
+            COMMENT "Copying MinGW runtime DLLs from compiler directory to bin..."
         )
     else()
         message(WARNING "windeployqt not found. Qt DLLs will not be automatically copied.")
     endif()
-
-    # Copy MinGW runtime DLLs
-    if(MINGW)
-        set(MINGW_BIN_DIR "${CMAKE_PREFIX_PATH}/bin")
-        add_custom_command(TARGET blade POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${MINGW_BIN_DIR}/libwinpthread-1.dll"
-                "${CMAKE_SOURCE_DIR}/bin/"
-            COMMENT "Copying MinGW pthread DLL to bin folder..."
-        )
-    endif()
 endif()
 
+# Copy assets into bin (after deploy) - keep it simple and non-destructive.
 add_custom_command(TARGET blade POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/blade.ico
-        ${CMAKE_SOURCE_DIR}/bin/blade.ico
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/styles-widgets.qss
-        ${CMAKE_SOURCE_DIR}/bin/styles-widgets.qss
-    COMMENT "Copying blade.ico and styles-widgets.qss to bin folder..."
-)
-
-add_custom_command(TARGET blade POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/blade.ico"
+        "${DEPLOY_DIR}/blade.ico"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/styles-widgets.qss"
+        "${DEPLOY_DIR}/styles-widgets.qss"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/web
-        ${CMAKE_SOURCE_DIR}/bin/web
-    COMMENT "Copying web directory to bin folder..."
-)
-
-add_custom_command(TARGET blade POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/blade.ico
-        ${CMAKE_SOURCE_DIR}/bin/web/blade.ico
-    COMMENT "Copying blade.ico to bin/web folder..."
+        "${CMAKE_SOURCE_DIR}/web"
+        "${DEPLOY_DIR}/web"
+    COMMENT "Copying assets to bin folder..."
 )
 
 install(TARGETS blade DESTINATION bin)
 install(DIRECTORY web/ DESTINATION share/blade/web)
-

@@ -56,10 +56,6 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     urlLayout->setSpacing(15);
     urlLayout->setContentsMargins(30, 30, 30, 30);
 
-    auto* urlTitleLabel = new QLabel("Server URL", this);
-    urlTitleLabel->setObjectName("sectionTitle");
-    urlLayout->addWidget(urlTitleLabel);
-
     urlLabel_ = new QLabel(this);
     urlLabel_->setObjectName("urlText");
     urlLabel_->setAlignment(Qt::AlignCenter);
@@ -83,10 +79,6 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     auto* qrLayout = new QVBoxLayout(qrWidget);
     qrLayout->setSpacing(15);
     qrLayout->setContentsMargins(30, 30, 30, 30);
-
-    auto* qrTitleLabel = new QLabel("QR Code", this);
-    qrTitleLabel->setObjectName("sectionTitle");
-    qrLayout->addWidget(qrTitleLabel, 0, Qt::AlignCenter);
 
     qrLabel_ = new QLabel(this);
     qrLabel_->setObjectName("qrCode");
@@ -112,7 +104,7 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     });
 }
 
-void ServerWidget::setServerUrl(const QString& url) {
+void ServerWidget::setServerUrl(const QString& url) const {
     urlLabel_->setText(url);
 }
 

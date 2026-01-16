@@ -22,7 +22,7 @@ private slots:
     void onStartNoAuth();
 
 private:
-    void showServerView(const QString& url);
+    void showServerView(const QString& url) const;
     void showError(const QString& message);
     bool startServer(bool withAuth, const QString& username = "", const QString& password = "");
 

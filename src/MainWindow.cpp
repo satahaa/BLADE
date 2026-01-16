@@ -67,11 +67,11 @@ bool MainWindow::startServer(bool withAuth, const QString& username, const QStri
 
     try {
         if (withAuth) {
-            server_ = std::make_unique<blade::Server>(8080, true,
+            server_ = std::make_unique<Server>(8080, true,
                                                       username.toStdString(),
                                                       password.toStdString());
         } else {
-            server_ = std::make_unique<blade::Server>(8080, false, "", "");
+            server_ = std::make_unique<Server>(8080, false, "", "");
         }
 
         if (!server_->start()) {
@@ -92,7 +92,7 @@ bool MainWindow::startServer(bool withAuth, const QString& username, const QStri
     }
 }
 
-void MainWindow::showServerView(const QString& url) {
+void MainWindow::showServerView(const QString& url) const {
     Logger::getInstance().info("Showing server view");
     serverWidget_->setServerUrl(url);
     stackWidget_->setCurrentWidget(serverWidget_);

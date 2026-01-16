@@ -4,6 +4,13 @@
 #include <QWidget>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QComboBox>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QPixmap>
+#include <QLineEdit>
+#include <QPushButton>
+
 
 namespace blade {
 
@@ -18,10 +25,10 @@ signals:
     void startNoAuth();
 
 private:
+    QComboBox* authModeCombo_;
     QLineEdit* usernameEdit_;
     QLineEdit* passwordEdit_;
-    QPushButton* startAuthButton_;
-    QPushButton* startNoAuthButton_;
+    QPushButton* startButton_;
 };
 
 } // namespace blade

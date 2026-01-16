@@ -11,6 +11,7 @@
         <file>icons/phone_android.svg</file>
         <file>icons/check_circle.svg</file>
         <file>blade.ico</file>
+        <file>blade.png</file>
         <file>styles-widgets.qss</file>
     </qresource>
 </RCC>
