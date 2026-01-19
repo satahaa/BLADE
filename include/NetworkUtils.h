@@ -64,6 +64,15 @@ namespace blade::NetworkUtils {
     SocketType acceptConnection(SocketType socket, std::string& clientAddress);
     
     /**
+     * @brief Accept a connection with timeout
+     * @param socket Server socket descriptor
+     * @param clientAddress Output for client address
+     * @param timeoutMs Timeout in milliseconds
+     * @return Client socket descriptor or INVALID_SOCKET on error/timeout
+     */
+    SocketType acceptConnectionWithTimeout(SocketType socket, std::string& clientAddress, int timeoutMs);
+
+    /**
      * @brief Close a socket
      * @param socket Socket descriptor
      */

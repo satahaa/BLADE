@@ -3,6 +3,9 @@
 #include "Logger.h"
 #include <QMessageBox>
 #include <QApplication>
+#include <QTimer>
+#include <QCloseEvent>
+#include <QThread>
 
 namespace blade {
 
@@ -101,6 +104,26 @@ void MainWindow::showServerView(const QString& url) const {
 void MainWindow::showError(const QString& message) {
     Logger::getInstance().warning("Showing error: " + message.toStdString());
     QMessageBox::warning(this, "BLADE - Error", message);
+}
+
+void MainWindow::forceClose() {
+    Logger::getInstance().info("[CLOSE] forceClose() called, exiting application");
+    // This will force the application to exit immediately after server shutdown
+    QApplication::exit(0);
+}
+
+void MainWindow::closeEvent(QCloseEvent* event) {
+    Logger::getInstance().info("[CLOSE] MainWindow::closeEvent called");
+    if (server_) {
+        Logger::getInstance().info("[CLOSE] Server is running, calling stop()");
+        server_->stop();
+        Logger::getInstance().info("[CLOSE] Server::stop() returned");
+        server_.reset();
+        Logger::getInstance().info("[CLOSE] server_.reset() done");
+    }
+    Logger::getInstance().info("[CLOSE] Accepting close event");
+    event->accept();
+    QMainWindow::closeEvent(event);
 }
 
 } // namespace blade

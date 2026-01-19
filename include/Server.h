@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 #include <chrono>
+#include <thread>
 #include "AuthenticationManager.h"
 #include "ConnectionHandler.h"
 #include "HTTPServer.h"
@@ -100,6 +101,9 @@ private:
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> httpClientActivity_;
 
     mutable std::mutex ipMutex_;
+
+    std::thread acceptThread_;
+    std::thread cleanupThread_;
 
     void acceptConnections();
     void cleanupInactiveHTTPClients();

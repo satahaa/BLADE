@@ -38,6 +38,7 @@ void HTTPServer::stop() {
             serverThread_.join();
         }
     }
+    Logger::getInstance().info("HTTP Server stopped");
 }
 
 bool HTTPServer::isRunning() const {
@@ -69,15 +70,15 @@ void HTTPServer::run() {
     // Silently accept and handle HTTP requests (no logging of every request)
     while (running_) {
         std::string clientAddr;
-
-        if (SocketType clientSocket = NetworkUtils::acceptConnection(serverSocket, clientAddr); clientSocket != INVALID_SOCKET) {
+        // Use non-blocking accept with timeout
+        SocketType clientSocket = NetworkUtils::acceptConnectionWithTimeout(serverSocket, clientAddr, 1000); // 1s timeout
+        if (!running_) break;
+        if (clientSocket != INVALID_SOCKET) {
             // Track this client connection if it's not localhost, and we have a server reference
             if (server_ && clientAddr != "127.0.0.1" && clientAddr != "::1" && clientAddr.find("127.") != 0) {
                 // Get server's own IP to filter it out
                 const std::string serverIP = NetworkUtils::getLocalIPAddress();
                 if (clientAddr != serverIP) {
-                    // Add this IP to the server's connected devices
-                    // The Server will handle adding it to its connectedIPs_ set
                     server_->trackHTTPConnection(clientAddr);
                 }
             }

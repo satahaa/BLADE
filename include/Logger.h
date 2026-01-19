@@ -28,11 +28,11 @@ public:
 
     void setLogFile(const std::string& filename);
 
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
 private:
     Logger();
     ~Logger();
-    Logger(const Logger&) = delete;
-    Logger& operator=(const Logger&) = delete;
 
     static std::string getLevelString(LogLevel level);
     static std::string getCurrentTimestamp();

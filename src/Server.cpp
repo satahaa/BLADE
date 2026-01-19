@@ -5,6 +5,7 @@
 #include <thread>
 #include <vector>
 #include <windows.h>
+#include <fcntl.h>
 
 namespace blade {
 
@@ -48,12 +49,9 @@ bool Server::start() {
     }
     
     // Start accepting connections in a separate thread
-    std::thread acceptThread(&Server::acceptConnections, this);
-    acceptThread.detach();
-    
+    acceptThread_ = std::thread(&Server::acceptConnections, this);
     // Start cleanup thread for inactive HTTP clients
-    std::thread cleanupThread(&Server::cleanupInactiveHTTPClients, this);
-    cleanupThread.detach();
+    cleanupThread_ = std::thread(&Server::cleanupInactiveHTTPClients, this);
 
     const std::string ip = NetworkUtils::getLocalIPAddress();
 
@@ -76,9 +74,14 @@ void Server::stop() {
     }
     
     running_ = false;
+    Logger::getInstance().info("Server stop() reached");
     httpServer_->stop();
     NetworkUtils::cleanup();
-    
+
+    // Join threads if joinable
+    if (acceptThread_.joinable()) acceptThread_.join();
+    if (cleanupThread_.joinable()) cleanupThread_.join();
+
     Logger::getInstance().info("Server stopped");
 }
 
@@ -157,13 +160,20 @@ void Server::acceptConnections() {
         return;
     }
     
-    // Get the server's own IP to filter it out
     const std::string serverIP = NetworkUtils::getLocalIPAddress();
 
     while (running_) {
         std::string clientAddr;
-
-        if (SocketType clientSocket = NetworkUtils::acceptConnection(serverSocket, clientAddr); clientSocket != INVALID_SOCKET) {
+        SocketType clientSocket = NetworkUtils::acceptConnectionWithTimeout(serverSocket, clientAddr, 1000); // 1s timeout
+        if (!running_) break;
+        if (clientSocket != INVALID_SOCKET) {
+            // Set client socket to non-blocking
+#ifdef _WIN32
+            u_long mode = 1;
+            ioctlsocket(clientSocket, FIONBIO, &mode);
+#else
+            fcntl(clientSocket, F_SETFL, O_NONBLOCK);
+#endif
             const int clientId = connectionHandler_->addClient(clientSocket, clientAddr);
 
             // Filter out local connections completely:
@@ -202,16 +212,25 @@ void Server::acceptConnections() {
 
                 // Start a thread to monitor this client for disconnection
                 std::thread([this, clientSocket, clientAddr]() {
-                    char buffer[1];
-                    // Wait for the socket to close
                     while (running_) {
-                        if (const int result = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer)); result <= 0) {
-                            // Client disconnected
-                            std::lock_guard lock(ipMutex_);
-                            connectedIPs_.erase(clientAddr);
-                            Logger::getInstance().info("[DISCONNECTED] " + clientAddr);
-                            break;
+                        fd_set readfds;
+                        FD_ZERO(&readfds);
+                        FD_SET(clientSocket, &readfds);
+                        timeval tv;
+                        tv.tv_sec = 0;
+                        tv.tv_usec = 500000; // 0.5s timeout
+                        int selResult = select(clientSocket + 1, &readfds, nullptr, nullptr, &tv);
+                        if (selResult > 0 && FD_ISSET(clientSocket, &readfds)) {
+                            char buffer[1];
+                            int bytes = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer));
+                            if (bytes <= 0) {
+                                std::lock_guard lock(ipMutex_);
+                                connectedIPs_.erase(clientAddr);
+                                Logger::getInstance().info("[DISCONNECTED] " + clientAddr);
+                                break;
+                            }
                         }
+                        // If selResult == 0, timeout, just loop again and check running_
                     }
                 }).detach();
             }

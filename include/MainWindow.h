@@ -17,9 +17,14 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override = default;
 
+protected:
+    void closeEvent(QCloseEvent* event) override;
+
 private slots:
     void onStartWithAuth(const QString& username, const QString& password);
     void onStartNoAuth();
+
+    static void forceClose();
 
 private:
     void showServerView(const QString& url) const;
@@ -29,7 +34,7 @@ private:
     QStackedWidget* stackWidget_;
     LoginWidget* loginWidget_;
     ServerWidget* serverWidget_;
-    std::unique_ptr<blade::Server> server_;
+    std::unique_ptr<Server> server_;
 };
 
 } // namespace blade

@@ -82,6 +82,34 @@ SocketType acceptConnection(const SocketType socket, std::string& clientAddress)
     return clientSocket;
 }
 
+SocketType acceptConnectionWithTimeout(const SocketType socket, std::string& clientAddress, int timeoutMs) {
+#ifdef _WIN32
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(socket, &readfds);
+    timeval tv;
+    tv.tv_sec = timeoutMs / 1000;
+    tv.tv_usec = (timeoutMs % 1000) * 1000;
+    int result = select(static_cast<int>(socket) + 1, &readfds, nullptr, nullptr, &tv);
+    if (result > 0 && FD_ISSET(socket, &readfds)) {
+        return acceptConnection(socket, clientAddress);
+    }
+    return INVALID_SOCKET;
+#else
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(socket, &readfds);
+    timeval tv;
+    tv.tv_sec = timeoutMs / 1000;
+    tv.tv_usec = (timeoutMs % 1000) * 1000;
+    int result = select(socket + 1, &readfds, nullptr, nullptr, &tv);
+    if (result > 0 && FD_ISSET(socket, &readfds)) {
+        return acceptConnection(socket, clientAddress);
+    }
+    return INVALID_SOCKET;
+#endif
+}
+
 void closeSocket(SocketType socket) {
     if (socket != INVALID_SOCKET) {
 #ifdef _WIN32
