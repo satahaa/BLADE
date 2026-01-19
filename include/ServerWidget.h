@@ -15,7 +15,7 @@ public:
     void setServerUrl(const QString& url) const;
 
 private:
-    QLabel* statusLabel_;
+    QLabel* statusLabel_{};
     QLabel* urlLabel_;
     QLabel* qrLabel_;
 };
@@ -23,4 +23,3 @@ private:
 } // namespace blade
 
 #endif // BLADE_SERVERWIDGET_H
-
