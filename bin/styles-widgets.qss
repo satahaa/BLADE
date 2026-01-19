@@ -1,5 +1,13 @@
-/* BLADE - Qt Widgets Stylesheet */
-/* Global Styles */
+/* BLADE - Qt Widgets Stylesheet (matches your web CSS aesthetic) */
+/* Notes:
+   - Uses only Qt-supported selectors: type, #objectName, and [property="..."].
+   - For “CSS classes” like .device-item / .notification.success, use:
+       widget->setProperty("role","deviceItem");
+       widget->setProperty("type","success");  // for notifications
+     then call: widget->style()->unpolish(widget); widget->style()->polish(widget);
+*/
+
+/* ---------- Global Reset-ish ---------- */
 QWidget {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0a0a, stop:1 #1a1a1a);
     color: #e5e7eb;
@@ -7,300 +15,339 @@ QWidget {
     font-size: 15px;
     border: none;
 }
-
 QMainWindow {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0a0a, stop:1 #1a1a1a);
 }
 
-/* Title Labels */
+/* ---------- Typography ---------- */
+QLabel {
+    background: transparent;
+    color: #e5e7eb;
+}
 #titleLabel {
-    font-family: "Space Grotesk", sans-serif;
+    font-family: "Space Grotesk", "DM Sans", sans-serif;
     font-size: 40px;
     font-weight: 700;
-    color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #d4d4d8, stop:1 #71717a);
+    color: #d4d4d8;            /* gradient text not supported in Qt QSS */
     letter-spacing: -1.5px;
-    background: none;
 }
-
 #subtitleLabel, #serverSubtitle {
     font-family: "DM Sans", sans-serif;
-    font-size: 15px;
+    font-size: 13px;
     color: #9ca3af;
     letter-spacing: -0.2px;
 }
-
 #serverTitle {
-    font-family: "Space Grotesk", sans-serif;
+    font-family: "Space Grotesk", "DM Sans", sans-serif;
     font-size: 28px;
     font-weight: 700;
     color: #d4d4d8;
 }
+#sectionTitle, .sectionTitle {
+    font-family: "Space Grotesk", "DM Sans", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #e5e7eb;
+    letter-spacing: -0.3px;
+}
 
-/* Form Container */
-#formContainer {
+/* ---------- Cards / Containers ---------- */
+#formContainer, #urlContainer, #qrContainer, #cardContainer, .card {
     background-color: #1a1a1a;
     border: 1px solid #374151;
     border-radius: 10px;
     padding: 25px;
 }
 
-#fieldLabel {
+/* Optional: "glass" variant (setProperty("surface","glass")) */
+QWidget[surface="glass"] {
+    background-color: rgba(26, 26, 26, 0.88);
+    border: 1px solid rgba(55, 65, 81, 0.85);
+    border-radius: 10px;
+}
+
+/* ---------- Field Labels ---------- */
+#fieldLabel, QLabel[fieldLabel="true"] {
     font-family: "DM Sans", sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: #9ca3af;
     letter-spacing: -0.01em;
 }
 
-/* Input Fields */
-#inputField {
+/* ---------- Inputs ---------- */
+QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QDateEdit, QTimeEdit, QDateTimeEdit, QComboBox {
     background-color: #0a0a0a;
     border: 1px solid #374151;
-    border-radius: 5px;
-    padding: 12px;
+    border-radius: 6px;
+    padding: 10px 12px;
     color: #e5e7eb;
     font-size: 15px;
     font-family: "DM Sans", sans-serif;
-    font-weight: 400;
-    letter-spacing: -0.01em;
     selection-background-color: #4b5563;
 }
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
+QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus, QTimeEdit:focus, QDateTimeEdit:focus, QComboBox:focus {
+    border: 1px solid #4b5563;
+}
+QLineEdit:disabled, QTextEdit:disabled, QPlainTextEdit:disabled, QComboBox:disabled {
+    color: #9ca3af;
+    background-color: #111111;
+    border: 1px solid #2b2f36;
+}
 
-#inputField:focus {
-    border-color: #4b5563;
+/* Combo popup */
+QComboBox::drop-down {
+    border: none;
+    width: 28px;
+}
+QComboBox::down-arrow {
+    image: none; /* keep clean; optionally replace with an icon */
+    border: none;
+}
+QAbstractItemView {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    selection-background-color: #374151;
+    selection-color: #e5e7eb;
     outline: none;
 }
 
-/* Buttons */
-#primaryButton {
-    background: #4b5563;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    font-family: "DM Sans", sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    padding: 12px 24px;
-}
-#primaryButton:hover {
-    background: #374151;
-}
-#primaryButton:pressed {
-    background: #1f2937;
-}
-
-#secondaryButton {
-    background: #4b5563;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    font-family: "DM Sans", sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    padding: 12px 24px;
-}
-#secondaryButton:hover {
-    background: #374151;
-}
-#secondaryButton:pressed {
-    background: #1f2937;
-}
-
-/* Status Indicator */
-#statusIndicator {
-    background: #1a1a1a;
-    border: 2px solid #10b981;
-    border-radius: 12px;
-    padding: 12px 24px;
-}
-
-#statusIcon {
-    font-size: 18px;
-    color: #10b981;
-    font-weight: bold;
+/* ---------- Buttons (Web-like hover lift is not possible; simulate with tone + border) ---------- */
+QPushButton {
+    background-color: #4b5563;
+    color: #ffffff;
+    border: 1px solid #4b5563;
     border-radius: 6px;
-    background: #10b981;
-    width: 12px;
-    height: 12px;
-    margin-right: 10px;
-}
-
-#statusText {
-    font-size: 15px;
-    font-weight: 600;
-    color: #10b981;
-}
-
-/* URL Container */
-#urlContainer, #qrContainer {
-    background: #1a1a1a;
-    border: 1px solid #374151;
-    border-radius: 10px;
-    padding: 20px;
-}
-
-#sectionTitle {
-    font-family: "Space Grotesk", sans-serif;
-    font-size: 18px;
-    font-weight: 600;
-    color: #d4d4d8;
-    letter-spacing: -0.02em;
-}
-
-#urlText {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 18px;
-    font-weight: 500;
-    color: #10b981;
-    padding: 12px;
-    background: #0a0a0a;
-    border-radius: 6px;
-}
-
-#copyButton {
-    background: #4b5563;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
     font-family: "DM Sans", sans-serif;
     font-size: 14px;
     font-weight: 600;
-    padding: 12px 24px;
+    padding: 10px 18px;
 }
-
-#copyButton:hover {
-    background: #374151;
-}
-
-#copyButton:pressed {
-    background: #1f2937;
-}
-
-/* QR Code */
-#qrCode {
-    background: #fff;
-    border-radius: 8px;
-    padding: 20px;
-}
-
-/* Instructions */
-#instructions {
-    font-family: "DM Sans", sans-serif;
-    font-size: 13px;
-    color: #6b7280;
-}
-
-/* Card-like containers */
-.card, #cardContainer {
-    background: #1a1a1a;
-    border-radius: 10px;
+QPushButton:hover {
+    background-color: #374151;
     border: 1px solid #374151;
-    padding: 25px;
-    margin-bottom: 20px;
+}
+QPushButton:pressed {
+    background-color: #1f2937;
+    border: 1px solid #1f2937;
+}
+QPushButton:disabled {
+    background-color: #9ca3af;
+    border: 1px solid #9ca3af;
+    color: rgba(255,255,255,0.8);
 }
 
-/* Scrollbar styling */
-QScrollBar:vertical, QScrollBar:horizontal {
-    background: #0a0a0a;
-    width: 8px;
-    border-radius: 4px;
+/* ObjectName button hooks (your existing IDs) */
+#primaryButton, #secondaryButton, #copyButton {
+    background-color: #4b5563;
+    border: 1px solid #4b5563;
 }
-QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
-    background: #374151;
-    border-radius: 4px;
+#primaryButton:hover, #secondaryButton:hover, #copyButton:hover {
+    background-color: #374151;
+    border: 1px solid #374151;
 }
-QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
-    background: #9ca3af;
+#primaryButton:pressed, #secondaryButton:pressed, #copyButton:pressed {
+    background-color: #1f2937;
+    border: 1px solid #1f2937;
 }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-    background: none;
+
+/* "Danger" button variant: setProperty("variant","danger") */
+QPushButton[variant="danger"] {
+    background-color: #374151;
+    border: 1px solid #374151;
+}
+QPushButton[variant="danger"]:hover {
+    background-color: #1f2937;
+    border: 1px solid #1f2937;
+}
+
+/* ---------- Status Pill ---------- */
+#statusIndicator {
+    background-color: #1a1a1a;
+    border: 2px solid #10b981;
+    border-radius: 12px;
+    padding: 10px 18px;
+}
+#statusText {
+    font-size: 14px;
+    font-weight: 700;
+    color: #10b981;
+}
+/* Dot: best if you setFixedSize(12,12) on the label/widget */
+#statusIcon {
+    background-color: #10b981;
+    border-radius: 6px;
+    min-width: 12px;
+    min-height: 12px;
+    max-width: 12px;
+    max-height: 12px;
+}
+
+/* Disconnected variant: setProperty("state","disconnected") on statusIndicator */
+#statusIndicator[state="disconnected"] {
+    border: 2px solid #ef4444;
+}
+#statusIndicator[state="disconnected"] #statusText {
+    color: #ef4444;
+}
+#statusIndicator[state="disconnected"] #statusIcon {
+    background-color: #ef4444;
+}
+
+/* ---------- URL Text / Monospace Blocks ---------- */
+#urlText, QLabel[role="monoBlock"] {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: #10b981;
+    padding: 10px 12px;
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    border-radius: 8px;
+}
+
+/* ---------- QR Code Frame ---------- */
+#qrCode {
+    background-color: #ffffff;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+/* ---------- Helper / Hint text ---------- */
+#instructions, QLabel[role="hint"] {
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* ---------- Lists / Device Items (replace .device-item with role=...) ---------- */
+#deviceList, QWidget[role="deviceList"] {
+    background: transparent;
     border: none;
 }
-
-/* Notification styling */
-#notification {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #10b981, stop:1 #059669);
-    color: #fff;
-    border: 1px solid #34d399;
+QWidget[role="deviceItem"] {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
     border-radius: 8px;
-    font-family: "Space Grotesk", sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    padding: 15px 25px;
+    padding: 14px;
 }
-#notification.error {
+QLabel[role="deviceName"] {
+    font-family: "DM Sans", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #e5e7eb;
+}
+QLabel[role="deviceIp"] {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: #9ca3af;
+}
+QLabel[role="emptyState"] {
+    color: #9ca3af;
+    font-size: 13px;
+    padding: 24px;
+}
+
+/* ---------- Notification Toast (Qt-friendly: role=notification + type=success|error|info) ---------- */
+QWidget[role="notification"] {
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-family: "Space Grotesk", "DM Sans", sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.18);
+}
+/* success */
+QWidget[role="notification"][type="success"] {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #10b981, stop:1 #059669);
+    border: 1px solid #34d399;
+}
+/* error */
+QWidget[role="notification"][type="error"] {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ef4444, stop:1 #dc2626);
     border: 1px solid #f87171;
 }
-#notification.info {
+/* info */
+QWidget[role="notification"][type="info"] {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3b82f6, stop:1 #2563eb);
     border: 1px solid #60a5fa;
 }
 
-/* Device list styling */
-#deviceList, .device-list {
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-}
-.device-item {
+/* ---------- Scrollbars (match web) ---------- */
+QScrollBar:vertical {
     background: #0a0a0a;
-    border-radius: 5px;
-    border: 1px solid #374151;
-    padding: 15px;
-    color: #e5e7eb;
-    font-family: "DM Sans", sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 10px;
+    width: 8px;
+    margin: 0px;
+    border-radius: 4px;
 }
-.device-info {
-    color: #e5e7eb;
+QScrollBar::handle:vertical {
+    background: #374151;
+    border-radius: 4px;
+    min-height: 24px;
 }
-.device-name {
-    font-family: "DM Sans", sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    color: #e5e7eb;
+QScrollBar::handle:vertical:hover {
+    background: #9ca3af;
 }
-.device-ip {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 13px;
-    color: #9ca3af;
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    background: none;
+    height: 0px;
+    border: none;
 }
-.no-devices, .no-files {
-    color: #9ca3af;
-    font-size: 14px;
-    text-align: center;
-    padding: 30px;
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
 }
 
-/* Message Box */
+QScrollBar:horizontal {
+    background: #0a0a0a;
+    height: 8px;
+    margin: 0px;
+    border-radius: 4px;
+}
+QScrollBar::handle:horizontal {
+    background: #374151;
+    border-radius: 4px;
+    min-width: 24px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #9ca3af;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    background: none;
+    width: 0px;
+    border: none;
+}
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}
+
+/* ---------- Message Box ---------- */
 QMessageBox {
-    background: #1a1a1a;
+    background-color: #1a1a1a;
     border-radius: 10px;
 }
 QMessageBox QLabel {
     color: #e5e7eb;
-    font-size: 14px;
+    font-size: 13px;
     font-family: "DM Sans", sans-serif;
 }
 QMessageBox QPushButton {
-    background: #4b5563;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
+    background-color: #4b5563;
+    color: #ffffff;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
     font-family: "DM Sans", sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 8px 16px;
-    min-width: 80px;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 14px;
+    min-width: 90px;
 }
 QMessageBox QPushButton:hover {
-    background: #374151;
+    background-color: #374151;
+    border: 1px solid #374151;
 }
 QMessageBox QPushButton:pressed {
-    background: #1f2937;
+    background-color: #1f2937;
+    border: 1px solid #1f2937;
 }
