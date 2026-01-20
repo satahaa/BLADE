@@ -566,6 +566,44 @@ label[for="fileInput"]:hover {
     transform: scale(1.1);
 }
 
+.file-progress {
+    width: 100%;
+    height: 8px;
+    margin-top: 8px;
+    border-radius: 4px;
+    background: var(--card-background);
+    appearance: none;
+    -webkit-appearance: none;
+    overflow: hidden;
+    border: none;
+    display: block;
+}
+
+.file-progress::-webkit-progress-bar {
+    background-color: var(--card-background);
+    border-radius: 4px;
+}
+
+.file-progress::-webkit-progress-value {
+    background: var(--accent-silver);
+    border-radius: 4px;
+}
+
+.file-progress::-moz-progress-bar {
+    background: var(--accent-silver);
+    border-radius: 4px;
+}
+
+.file-progress::-ms-fill {
+    background: var(--accent-silver);
+    border-radius: 4px;
+}
+
+.file-progress[value] {
+    background-color: var(--card-background);
+    color: var(--accent-silver);
+}
+
 .received-files {
     min-height: 100px;
     max-height: 300px;

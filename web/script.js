@@ -488,8 +488,8 @@ class BladeApp {
                     <img src="${this.getFileIcon(file.name)}" alt="" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
                     <span class="file-name">${file.name}</span>
                     <span class="file-size">${this.formatFileSize(file.size)}</span>
+                    <progress id="progress-${index}" value="0" max="100" class="file-progress"></progress>
                 </div>
-                <progress id="progress-${index}" value="0" max="100" style="width: 100%; display: block; margin-top: 6px;"></progress>
                 <button class="remove-file-btn" onclick="app.removeFile(${index})" aria-label="Remove file"><img src="icons/delete.svg" alt="Delete" style="width: 20px; height: 20px;"></button>
             </div>
         `).join('');
