@@ -2,7 +2,6 @@
 #include <cstring>
 #include <cstdint>
 #include <iostream>
-#include <cstdlib> // malloc/free
 
 #ifdef _WIN32
   #include <winsock2.h>

@@ -11,11 +11,11 @@
 namespace blade {
 
 // Helper function to generate a QR code QImage from a string
-static QImage generateQrCodeImage(const QString& data, int size = 300) {
+static QImage generateQrCodeImage(const QString& data, const int size = 300) {
     using qrcodegen::QrCode;
     using qrcodegen::QrSegment;
-    QrCode qr = QrCode::encodeText(data.toUtf8().constData(), QrCode::Ecc::LOW);
-    int qrSize = qr.getSize();
+    const QrCode qr = QrCode::encodeText(data.toUtf8().constData(), QrCode::Ecc::LOW);
+    const int qrSize = qr.getSize();
     QImage image(qrSize, qrSize, QImage::Format_Mono);
     image.fill(1);
     for (int y = 0; y < qrSize; ++y) {

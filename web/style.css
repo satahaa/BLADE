@@ -508,8 +508,8 @@ label[for="fileInput"]:hover {
 
 .selected-files {
     min-height: 50px;
-    max-height: 200px;
-    overflow-y: auto;
+    /* max-height: 200px; */
+    /* overflow-y: auto; */
     margin-bottom: 15px;
     padding: 10px;
     background: var(--background-color);

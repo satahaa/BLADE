@@ -45,8 +45,8 @@ void MainWindow::onStartWithAuth(const QString& username, const QString& passwor
     }
 
     if (startServer(true, username, password)) {
-        std::string ip = NetworkUtils::getLocalIPAddress();
-        QString url = QString::fromStdString("http://" + ip);
+        const std::string ip = NetworkUtils::getLocalIPAddress();
+        const QString url = QString::fromStdString("http://" + ip);
         showServerView(url);
     }
 }
@@ -55,13 +55,13 @@ void MainWindow::onStartNoAuth() {
     Logger::getInstance().info("Starting server without authentication");
 
     if (startServer(false)) {
-        std::string ip = NetworkUtils::getLocalIPAddress();
-        QString url = QString::fromStdString("http://" + ip);
+        const std::string ip = NetworkUtils::getLocalIPAddress();
+        const QString url = QString::fromStdString("http://" + ip);
         showServerView(url);
     }
 }
 
-bool MainWindow::startServer(bool withAuth, const QString& username, const QString& password) {
+bool MainWindow::startServer(const bool withAuth, const QString& username, const QString& password) {
     if (!NetworkUtils::initialize()) {
         Logger::getInstance().error("Failed to initialize network");
         showError("Failed to initialize network. Please check your connection.");
@@ -86,6 +86,12 @@ bool MainWindow::startServer(bool withAuth, const QString& username, const QStri
 
         std::string ip = NetworkUtils::getLocalIPAddress();
         Logger::getInstance().info("Server started successfully on IP: " + ip);
+        if (server_) {
+            server_->setDownloadDirectory(loginWidget_->getDownloadPath().toStdString());
+            connect(loginWidget_, &LoginWidget::downloadPathChanged, this, [this](const QString& path) {
+                if (server_) server_->setDownloadDirectory(path.toStdString());
+            });
+        }
         return true;
 
     } catch (const std::exception& e) {

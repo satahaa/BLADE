@@ -141,7 +141,7 @@ vector<QrSegment> QrSegment::makeSegments(const char *text) {
 }
 
 
-QrSegment QrSegment::makeEci(long assignVal) {
+QrSegment QrSegment::makeEci(const long assignVal) {
 	BitBuffer bb;
 	if (assignVal < 0)
 		throw std::domain_error("ECI assignment value out of range");

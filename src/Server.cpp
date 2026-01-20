@@ -5,7 +5,6 @@
 #include <thread>
 #include <vector>
 #include <windows.h>
-#include <fcntl.h>
 
 namespace blade {
 
@@ -66,6 +65,73 @@ bool Server::start() {
 
 
     return true;
+}
+
+static std::string sanitizeFilename(const std::string& name) {
+    std::string out;
+    for (char c : name) {
+        if (c == '/' || c == '\\' || c == ':' || c == '\0' || c == '\n' || c == '\r') {
+            out.push_back('_');
+        } else {
+            out.push_back(c);
+        }
+    }
+    if (out.empty()) out = "file";
+    return out;
+}
+
+void Server::setDownloadDirectory(const std::string& path) {
+    try {
+        std::filesystem::path p(path);
+        if (!p.is_absolute()) {
+            p = std::filesystem::absolute(p);
+        }
+        std::filesystem::create_directories(p);
+        downloadDir_ = p.string();
+        Logger::getInstance().info("Download directory set to: " + downloadDir_);
+    } catch (const std::exception& e) {
+        Logger::getInstance().error(std::string("Failed to set download directory: ") + e.what());
+    }
+}
+
+std::string Server::getDownloadDirectory() const {
+    return downloadDir_;
+}
+
+bool Server::handleUpload(const std::string& filename, const std::vector<uint8_t>& data) const {
+    try {
+        if (downloadDir_.empty()) {
+            Logger::getInstance().warning("No download directory set; rejecting upload for " + filename);
+            return false;
+        }
+        const std::string safeName = sanitizeFilename(filename);
+        const std::filesystem::path dest = std::filesystem::path(downloadDir_) / safeName;
+
+        // If file exists, append a numeric suffix
+        std::filesystem::path base = dest.stem();
+        std::filesystem::path ext = dest.extension();
+        std::filesystem::path dir = dest.parent_path();
+        std::filesystem::path candidate = dest;
+        int idx = 1;
+        while (std::filesystem::exists(candidate)) {
+            candidate = dir / (base.string() + '(' + std::to_string(idx++) + ')' + ext.string());
+        }
+
+
+        std::ofstream out(candidate, std::ios::binary);
+        if (!out) {
+            Logger::getInstance().error("Failed to open file for writing: " + candidate.string());
+            return false;
+        }
+        out.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+        out.close();
+
+        Logger::getInstance().info("Saved uploaded file: " + candidate.string());
+        return true;
+    } catch (const std::exception& e) {
+        Logger::getInstance().error(std::string("Exception saving upload: ") + e.what());
+        return false;
+    }
 }
 
 void Server::stop() {

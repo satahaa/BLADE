@@ -9,6 +9,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <filesystem>
 #include "AuthenticationManager.h"
 #include "ConnectionHandler.h"
 #include "HTTPServer.h"
@@ -42,6 +43,10 @@ public:
      * @return true if server started successfully
      */
     bool start();
+
+    void setDownloadDirectory(const std::string& path);
+    std::string getDownloadDirectory() const;
+    bool handleUpload(const std::string& filename, const std::vector<uint8_t>& data) const;
     
     /**
      * @brief Stop the server
@@ -88,6 +93,7 @@ public:
 private:
     int port_;
     bool useAuth_;
+    std::string downloadDir_;
     std::atomic<bool> running_;
     
     std::unique_ptr<AuthenticationManager> authManager_;

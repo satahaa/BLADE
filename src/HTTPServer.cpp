@@ -1,4 +1,7 @@
 #include "HTTPServer.h"
+
+#include <cstring>
+
 #include "Server.h"
 #include "NetworkUtils.h"
 #include "Logger.h"
@@ -96,34 +99,171 @@ void HTTPServer::run() {
 
 // Called from run() method which executes in a separate thread
 void HTTPServer::handleRequest(const SocketType clientSocket) const {
-    // Set 5 second timeout for read/write operations to prevent hanging
     setSocketTimeout(clientSocket, 5);
 
-    char buffer[4096];
-    const int bytesRead = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer) - 1);
-    
-    if (bytesRead <= 0) {
-        return;
+    auto recvSome = [&](std::vector<uint8_t>& dst) -> int {
+        uint8_t tmp[4096];
+        int n = NetworkUtils::receiveData(clientSocket, reinterpret_cast<char*>(tmp), sizeof(tmp));
+        if (n > 0) dst.insert(dst.end(), tmp, tmp + n);
+        return n;
+    };
+
+    // 1) Read until we have full headers: "\r\n\r\n"
+    std::vector<uint8_t> raw;
+    raw.reserve(8192);
+
+    const auto findSeq = [](const std::vector<uint8_t>& hay, const std::string& needle, const size_t start = 0) -> size_t {
+        if (needle.empty()) return std::string::npos;
+        const auto* n = reinterpret_cast<const uint8_t*>(needle.data());
+        for (size_t i = start; i + needle.size() <= hay.size(); ++i) {
+            if (std::memcmp(hay.data() + i, n, needle.size()) == 0) return i;
+        }
+        return std::string::npos;
+    };
+
+    while (true) {
+        if (raw.size() > 1024 * 1024) return; // sanity limit on headers+early body
+        if (findSeq(raw, "\r\n\r\n") != std::string::npos) break;
+        int n = recvSome(raw);
+        if (n <= 0) return;
     }
-    
-    buffer[bytesRead] = '\0';
-    std::string request(buffer);
-    
-    // Parse HTTP request
-    const size_t methodEnd = request.find(' ');
-    const size_t pathEnd = request.find(' ', methodEnd + 1);
-    
-    if (methodEnd == std::string::npos || pathEnd == std::string::npos) {
-        return;
-    }
-    
-    std::string path = request.substr(methodEnd + 1, pathEnd - methodEnd - 1);
-    
-    // Remove query parameters from path (e.g., /api/auth-config?t=123 -> /api/auth-config)
-    size_t queryPos = path.find('?');
-    if (queryPos != std::string::npos) {
+
+    size_t headerEnd = findSeq(raw, "\r\n\r\n");
+    size_t bodyStart = headerEnd + 4;
+
+    // Convert ONLY headers to string (safe: headers are text)
+    std::string headerStr(reinterpret_cast<const char*>(raw.data()), headerEnd);
+
+    // 2) Parse request line (method/path)
+    size_t lineEnd = headerStr.find("\r\n");
+    if (lineEnd == std::string::npos) return;
+    std::string requestLine = headerStr.substr(0, lineEnd);
+
+    size_t methodEnd = requestLine.find(' ');
+    size_t pathEnd   = requestLine.find(' ', methodEnd + 1);
+    if (methodEnd == std::string::npos || pathEnd == std::string::npos) return;
+
+    std::string method = requestLine.substr(0, methodEnd);
+    std::string path   = requestLine.substr(methodEnd + 1, pathEnd - methodEnd - 1);
+
+    if (size_t queryPos = path.find('?'); queryPos != std::string::npos) {
         path = path.substr(0, queryPos);
     }
+
+    // Helper: get a header value (case-insensitive match for typical headers)
+    auto getHeaderValue = [&](const std::string& name) -> std::string {
+        std::string needle = "\r\n" + name + ":";
+        size_t p = headerStr.find(needle);
+        if (p == std::string::npos) {
+            // also allow header at start (first line already removed)
+            needle = name + ":";
+            p = headerStr.find(needle);
+            if (p != 0) return "";
+        } else {
+            p += 2; // skip leading \r\n
+        }
+        p += name.size() + 1; // skip "Name:"
+        while (p < headerStr.size() && headerStr[p] == ' ') ++p;
+        size_t e = headerStr.find("\r\n", p);
+        if (e == std::string::npos) e = headerStr.size();
+        return headerStr.substr(p, e - p);
+    };
+
+    // --- File upload handling ---
+    if (path == "/api/upload" && method == "POST") {
+        // 3) Read full body using Content-Length
+        std::string cl = getHeaderValue("Content-Length");
+        if (cl.empty()) return;
+
+        size_t contentLength = 0;
+        try { contentLength = std::stoull(cl); }
+        catch (...) { return; }
+
+        // Ensure we have exactly Content-Length bytes after headers
+        while (raw.size() - bodyStart < contentLength) {
+            if (int n = recvSome(raw); n <= 0)
+                break;
+        }
+        if (raw.size() - bodyStart < contentLength) return;
+
+        // Copy body bytes
+        std::vector body(raw.begin() + bodyStart, raw.begin() + bodyStart + contentLength);
+
+        // 4) Parse multipart boundary from Content-Type
+        std::string ct = getHeaderValue("Content-Type");
+        size_t bpos = ct.find("boundary=");
+        if (bpos == std::string::npos) return;
+        std::string boundaryToken = ct.substr(bpos + 9);
+        // Trim optional quotes and spaces
+        while (!boundaryToken.empty() && (boundaryToken.front() == ' ')) boundaryToken.erase(boundaryToken.begin());
+        if (!boundaryToken.empty() && boundaryToken.front() == '"') {
+            boundaryToken.erase(boundaryToken.begin());
+            if (size_t q = boundaryToken.find('"'); q != std::string::npos)
+                boundaryToken.resize(q);
+        } else {
+            if (size_t sc = boundaryToken.find(';'); sc != std::string::npos)
+                boundaryToken.resize(sc);
+        }
+
+        std::string boundary = "--" + boundaryToken;
+        std::string boundaryNext = "\r\n" + boundary;
+
+        size_t partPos = 0;
+        bool anyOk = false;
+        while ((partPos = findSeq(body, boundary, partPos)) != std::string::npos) {
+            partPos += boundary.size();
+            // Skip optional leading \r\n
+            if (partPos + 2 <= body.size() && body[partPos] == '\r' && body[partPos + 1] == '\n') {
+                partPos += 2;
+            }
+            // Check for end marker
+            if (partPos + 2 <= body.size() && body[partPos] == '-' && body[partPos + 1] == '-') {
+                break; // End of multipart
+            }
+
+            // Find headers end
+            size_t headersEnd = findSeq(body, "\r\n\r\n", partPos);
+            if (headersEnd == std::string::npos) break;
+
+            std::string partHeaderStr(reinterpret_cast<const char*>(&body[partPos]), headersEnd - partPos);
+
+            // Extract filename
+            std::string filename;
+            if (size_t fn = partHeaderStr.find("filename="); fn != std::string::npos) {
+                fn += 9;
+                if (fn < partHeaderStr.size() && partHeaderStr[fn] == '"') {
+                    ++fn;
+                    if (size_t endq = partHeaderStr.find('"', fn); endq != std::string::npos)
+                        filename = partHeaderStr.substr(fn, endq - fn);
+                } else {
+                    size_t end = partHeaderStr.find(';', fn);
+                    if (end == std::string::npos) end = partHeaderStr.find("\r\n", fn);
+                    filename = partHeaderStr.substr(fn, end - fn);
+                }
+            }
+            if (filename.empty()) filename = "upload.bin";
+
+            // File data
+            size_t dataStart = headersEnd + 4;
+            size_t nextBoundary = findSeq(body, boundaryNext, dataStart);
+            if (nextBoundary == std::string::npos) break;
+            size_t dataEnd = nextBoundary;
+
+            if (std::vector fileData(body.begin() + dataStart, body.begin() + dataEnd);
+                server_ && server_->handleUpload(filename, fileData)) {
+                anyOk = true;
+            }
+
+            partPos = nextBoundary;
+        }
+
+        std::string resp = anyOk
+            ? "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK"
+            : "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 5\r\nConnection: close\r\n\r\nERROR";
+        (void)NetworkUtils::sendData(clientSocket, resp);
+        return;
+    }
+    // --- End file upload handling ---
 
     // Handle heartbeat endpoint
     if (path == "/api/heartbeat") {

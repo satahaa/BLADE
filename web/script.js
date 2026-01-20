@@ -18,7 +18,7 @@ class BladeApp {
     init() {
         // Setup event listeners
         this.setupEventListeners();
-        
+
         // Restore session state if exists
         this.restoreSessionState();
 
@@ -483,19 +483,19 @@ class BladeApp {
         }
 
         selectedFilesDiv.innerHTML = this.selectedFiles.map((file, index) => `
-            <div class="file-item">
+            <div class="file-item" style="margin-bottom: 16px;">
                 <div class="file-info">
                     <img src="${this.getFileIcon(file.name)}" alt="" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
                     <span class="file-name">${file.name}</span>
                     <span class="file-size">${this.formatFileSize(file.size)}</span>
                 </div>
+                <progress id="progress-${index}" value="0" max="100" style="width: 100%; display: block; margin-top: 6px;"></progress>
                 <button class="remove-file-btn" onclick="app.removeFile(${index})" aria-label="Remove file"><img src="icons/delete.svg" alt="Delete" style="width: 20px; height: 20px;"></button>
             </div>
         `).join('');
 
         sendBtn.disabled = false;
     }
-
     getFileIcon(filename) {
         const ext = filename.toLowerCase().split('.').pop();
 
@@ -539,21 +539,49 @@ class BladeApp {
         }
     }
 
-    sendFiles() {
+    async sendFiles() {
         if (this.selectedFiles.length === 0) {
             this.showNotification('No files selected', 'error');
             return;
         }
 
-        // Simulate file sending
-        this.showNotification(`Sending ${this.selectedFiles.length} file(s)...`, 'info');
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+            const file = this.selectedFiles[i];
+            const form = new FormData();
+            form.append('files[]', file, file.name);
 
-        setTimeout(() => {
-            this.showNotification('Files sent successfully!', 'success');
-            this.selectedFiles = [];
-            this.updateSelectedFilesDisplay();
-        }, 2000);
+            await new Promise((resolve) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/upload', true);
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        const progressBar = document.getElementById(`progress-${i}`);
+                        if (progressBar) progressBar.value = percent;
+                    }
+                };
+
+                xhr.onload = () => {
+                    const progressBar = document.getElementById(`progress-${i}`);
+                    if (progressBar) progressBar.value = 100;
+                    resolve();
+                };
+
+                xhr.onerror = () => {
+                    this.showNotification('Upload failed (network error)', 'error');
+                    resolve();
+                };
+
+                xhr.send(form);
+            });
+        }
+
+        this.showNotification('All files uploaded!', 'success');
+        this.selectedFiles = [];
+        this.updateSelectedFilesDisplay();
     }
+
 
     formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -574,7 +602,6 @@ class BladeApp {
         }, 3000);
     }
 }
-
 // Animations are now in style.css
 
 // Initialize the application

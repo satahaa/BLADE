@@ -1,5 +1,6 @@
 #include "LoginWidget.h"
 
+
 namespace blade {
 
 LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
@@ -31,6 +32,19 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
     authModeCombo_->addItem("Start Without Authentication");
     authModeCombo_->addItem("Start With Authentication");
     mainLayout->addWidget(authModeCombo_, 0, Qt::AlignCenter);
+
+    downloadPath_ = settings_.value("downloadPath", QDir::homePath()).toString();
+
+    auto* pathRow = new QWidget(this);
+    auto* pathLayout = new QHBoxLayout(pathRow);
+    pathLayout->setContentsMargins(0, 0, 0, 0);
+
+    downloadPathLabel_ = new QLabel(QString("Download location: %1").arg(downloadPath_), this);
+    selectPathButton_ = new QPushButton("Change Location", this);
+
+    pathLayout->addWidget(downloadPathLabel_, 1);
+    pathLayout->addWidget(selectPathButton_);
+    mainLayout->addWidget(pathRow, 0, Qt::AlignCenter);
 
     auto* formWidget = new QWidget(this);
     formWidget->setObjectName("formContainer");
@@ -74,13 +88,22 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
     mainLayout->addLayout(buttonLayout);
     mainLayout->addStretch(1);
 
-    connect(authModeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
-        bool authEnabled = (index == 1);
+    connect(authModeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](const int index) {
+        const bool authEnabled = (index == 1);
         usernameEdit_->setEnabled(authEnabled);
         passwordEdit_->setEnabled(authEnabled);
 
         startButton_->setText("Start");
         startButton_->setVisible(true);
+    });
+
+    connect(selectPathButton_, &QPushButton::clicked, this, [this]() {
+        if (const QString dir = QFileDialog::getExistingDirectory(this, "Select Download Folder", downloadPath_); !dir.isEmpty()) {
+            downloadPath_ = dir;
+            downloadPathLabel_->setText(QString("Download location: %1").arg(downloadPath_));
+            settings_.setValue("downloadPath", downloadPath_);
+            emit downloadPathChanged(downloadPath_);
+        }
     });
 
     connect(startButton_, &QPushButton::clicked, this, [this]() {
