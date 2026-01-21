@@ -1,18 +1,14 @@
 #ifndef BLADE_LOGINWIDGET_H
 #define BLADE_LOGINWIDGET_H
 
-#include <QWidget>
-#include <QLineEdit>
-#include <QPushButton>
 #include <QComboBox>
-#include <QVBoxLayout>
+#include <QWidget>
 #include <QLabel>
-#include <QPixmap>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSettings>
-#include <QDir>
 #include <QFileDialog>
+#include <QCheckBox>
 
 namespace blade {
 
@@ -29,9 +25,15 @@ signals:
     void downloadPathChanged(const QString& path);
 
 private:
-    QComboBox* authModeCombo_;
+    QPushButton* authToggleButton_;
     QLineEdit* passwordEdit_;
     QPushButton* startButton_;
+
+
+    QToolButton *authToggleSwitch_ = nullptr;
+    QToolButton* passwordVisButton_ = nullptr;
+    QLabel* headerIcon_ = nullptr;
+    QToolButton* authToggleIcon_ = nullptr;
 
     QLabel* downloadPathLabel_;
     QPushButton* selectPathButton_;

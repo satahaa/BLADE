@@ -1,8 +1,13 @@
 <RCC>
     <qresource prefix="/">
         <file>icons/lock.svg</file>
+        <file>icons/no_lock.svg</file>
+        <file>icons/encrypted.svg</file>
+        <file>icons/block.svg</file>
+        <file>icons/login.svg</file>
+        <file>icons/back.svg</file>
+        <file>icons/key.svg</file>
         <file>icons/rocket_launch.svg</file>
-        <file>icons/person.svg</file>
         <file>icons/visibility.svg</file>
         <file>icons/visibility_off.svg</file>
         <file>icons/qr_code.svg</file>

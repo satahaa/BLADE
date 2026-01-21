@@ -1,49 +1,76 @@
-/* BLADE - Qt Widgets Stylesheet (matches your web CSS aesthetic) */
-/* Notes:
-   - Uses only Qt-supported selectors: type, #objectName, and [property="..."].
-   - For “CSS classes” like .device-item / .notification.success, use:
-       widget->setProperty("role","deviceItem");
-       widget->setProperty("type","success");  // for notifications
-     then call: widget->style()->unpolish(widget); widget->style()->polish(widget);
-*/
+/* ============================================================
+   BLADE – Qt Widgets Stylesheet
+   Web aesthetic match: dark graphite gradients, silver accents,
+   subtle depth, clean typography, rounded corners.
+   IMPORTANT: Root gets the gradient; most widgets are transparent.
+   Use properties for variants (role/surface/state/type/variant).
+   ============================================================ */
 
-/* ---------- Global Reset-ish ---------- */
+/* ---------- Palette (reference) ----------
+   bg0: #0a0a0a
+   bg1: #1a1a1a
+   card: #1a1a1a
+   border: #374151
+   primary: #4b5563
+   primaryHover: #374151
+   pressed: #1f2937
+   text: #e5e7eb
+   text2: #9ca3af
+   silver: #d4d4d8
+   steel: #52525b
+------------------------------------------ */
+
+/* =========================
+   Global base
+   ========================= */
 QWidget {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0a0a, stop:1 #1a1a1a);
+    background: transparent;
     color: #e5e7eb;
     font-family: "DM Sans", "Segoe UI", Arial, sans-serif;
-    font-size: 15px;
-    border: none;
-}
-QMainWindow {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0a0a0a, stop:1 #1a1a1a);
+    font-size: 14px;
 }
 
-/* ---------- Typography ---------- */
+/* App root surfaces (set objectName on your main root widgets) */
+#appRoot,
+#loginRoot,
+#dashboardRoot,
+QMainWindow {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #0a0a0a, stop:1 #1a1a1a);
+}
+
+/* Optional: a slightly more "depthy" root (setProperty("surface","deep")) */
+QWidget[surface="deep"] {
+    background: qradialgradient(cx:0.5, cy:0.35, radius:1.2,
+        stop:0 #14161a, stop:0.55 #0c0d10, stop:1 #07080a);
+}
+
+/* =========================
+   Typography
+   ========================= */
 QLabel {
     background: transparent;
     color: #e5e7eb;
 }
+
+/* Brand */
 #titleLabel {
     font-family: "Space Grotesk", "DM Sans", sans-serif;
-    font-size: 40px;
+    font-size: 44px;
     font-weight: 700;
-    color: #d4d4d8;            /* gradient text not supported in Qt QSS */
-    letter-spacing: -1.5px;
+    letter-spacing: 6px;
+    color: #d4d4d8; /* gradient text not supported in QSS */
 }
-#subtitleLabel, #serverSubtitle {
+
+#subtitleLabel, #serverSubtitle, QLabel[role="subtitle"] {
     font-family: "DM Sans", sans-serif;
     font-size: 13px;
     color: #9ca3af;
     letter-spacing: -0.2px;
 }
-#serverTitle {
-    font-family: "Space Grotesk", "DM Sans", sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    color: #d4d4d8;
-}
-#sectionTitle, .sectionTitle {
+
+/* Section headings */
+#sectionTitle, QLabel[role="sectionTitle"] {
     font-family: "Space Grotesk", "DM Sans", sans-serif;
     font-size: 18px;
     font-weight: 600;
@@ -51,59 +78,137 @@ QLabel {
     letter-spacing: -0.3px;
 }
 
-/* ---------- Cards / Containers ---------- */
-#formContainer, #urlContainer, #qrContainer, #cardContainer, .card {
-    background-color: #1a1a1a;
-    border: 1px solid #374151;
-    border-radius: 10px;
-    padding: 25px;
+QLabel[role="hint"] {
+    font-size: 12px;
+    color: #9ca3af;
 }
 
-/* Optional: "glass" variant (setProperty("surface","glass")) */
+/* Monospace blocks */
+QLabel[role="mono"],
+QLabel[role="monoBlock"],
+#urlText {
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #d4d4d8;
+}
+
+/* =========================
+   Cards / surfaces (web .card)
+   ========================= */
+#loginCard,
+#formContainer,
+#cardContainer,
+#qrContainer,
+#urlContainer,
+QWidget[surface="card"] {
+    background-color: #1a1a1a;
+    border: 1px solid #374151;
+    border-radius: 14px;
+}
+
+/* Slightly more premium card (setProperty("surface","glass")) */
 QWidget[surface="glass"] {
     background-color: rgba(26, 26, 26, 0.88);
     border: 1px solid rgba(55, 65, 81, 0.85);
-    border-radius: 10px;
+    border-radius: 14px;
 }
 
-/* ---------- Field Labels ---------- */
-#fieldLabel, QLabel[fieldLabel="true"] {
-    font-family: "DM Sans", sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    color: #9ca3af;
-    letter-spacing: -0.01em;
-}
-
-/* ---------- Inputs ---------- */
-QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QDateEdit, QTimeEdit, QDateTimeEdit, QComboBox {
+/* Inner rows / pills (used inside cards) */
+QWidget[role="row"],
+#passwordRow,
+#downloadRow,
+#statusIndicator,
+#urlRow {
     background-color: #0a0a0a;
     border: 1px solid #374151;
-    border-radius: 6px;
+    border-radius: 12px;
+}
+
+/* Divider line */
+QWidget[role="divider"] {
+    background: rgba(229, 231, 235, 0.08);
+}
+#cardDivider { background: rgba(229,231,235,0.06); }
+
+/* =========================
+   Inputs
+   ========================= */
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QSpinBox,
+QDoubleSpinBox,
+QDateEdit,
+QTimeEdit,
+QDateTimeEdit,
+QComboBox {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    border-radius: 10px;
     padding: 10px 12px;
     color: #e5e7eb;
-    font-size: 15px;
+    font-size: 14px;
     font-family: "DM Sans", sans-serif;
     selection-background-color: #4b5563;
 }
-QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
-QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus, QTimeEdit:focus, QDateTimeEdit:focus, QComboBox:focus {
+
+/* --- Fix: prevent double-border pill-in-pill --- */
+#passwordRow QLineEdit#inputField,
+#downloadRow QLineEdit#inputField {
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+    padding: 10px 8px; /* keep text comfy */
+}
+#passwordRow QLineEdit { background: transparent; border: none; }
+#passwordRow, #downloadRow {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    border-radius: 12px;
+}
+#downloadRow #pathPill {
+    background: transparent;
+    border: none;
+    padding: 0px;            /* let layout margins do the spacing */
+    color: #d4d4d8;
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus,
+QDateEdit:focus,
+QTimeEdit:focus,
+QDateTimeEdit:focus,
+QComboBox:focus {
     border: 1px solid #4b5563;
 }
-QLineEdit:disabled, QTextEdit:disabled, QPlainTextEdit:disabled, QComboBox:disabled {
-    color: #9ca3af;
+
+QLineEdit:disabled,
+QTextEdit:disabled,
+QPlainTextEdit:disabled,
+QComboBox:disabled {
+    color: rgba(156, 163, 175, 0.9);
     background-color: #111111;
     border: 1px solid #2b2f36;
 }
 
-/* Combo popup */
+/* If you wrap the input in a row container, you can do focus visuals using property */
+QWidget[role="row"][focus="true"] {
+    border: 1px solid #4b5563;
+}
+
+/* Placeholder tone (Qt supports it through palette better; keep subtle with default) */
+
+/* ComboBox popup */
 QComboBox::drop-down {
     border: none;
     width: 28px;
 }
 QComboBox::down-arrow {
-    image: none; /* keep clean; optionally replace with an icon */
-    border: none;
+    image: none;
 }
 QAbstractItemView {
     background-color: #0a0a0a;
@@ -112,47 +217,75 @@ QAbstractItemView {
     selection-color: #e5e7eb;
     outline: none;
 }
-
-/* ---------- Buttons (Web-like hover lift is not possible; simulate with tone + border) ---------- */
+#authToggleSwitch::indicator {
+    width: 52px;
+    height: 28px;
+    border-radius: 14px;
+    background: rgba(75, 85, 99, 0.55);
+    border: 1px solid #374151;
+}
+#authToggleSwitch::indicator:checked {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
+        stop:0 #d4d4d8, stop:1 #71717a);
+    border: 1px solid rgba(212,212,216,0.65);
+}
+/* =========================
+   Buttons (match web .btn)
+   ========================= */
 QPushButton {
     background-color: #4b5563;
     color: #ffffff;
     border: 1px solid #4b5563;
-    border-radius: 6px;
+    border-radius: 10px;
     font-family: "DM Sans", sans-serif;
     font-size: 14px;
-    font-weight: 600;
-    padding: 10px 18px;
+    font-weight: 700;
+    padding: 10px 16px;
 }
+
 QPushButton:hover {
     background-color: #374151;
     border: 1px solid #374151;
 }
+
 QPushButton:pressed {
     background-color: #1f2937;
     border: 1px solid #1f2937;
 }
+
 QPushButton:disabled {
     background-color: #9ca3af;
     border: 1px solid #9ca3af;
-    color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.85);
 }
 
-/* ObjectName button hooks (your existing IDs) */
-#primaryButton, #secondaryButton, #copyButton {
+/* Primary CTA */
+#primaryButton,
+QPushButton[variant="primary"] {
     background-color: #4b5563;
-    border: 1px solid #4b5563;
+    border: 1px solid rgba(255,255,255,0.12);
 }
-#primaryButton:hover, #secondaryButton:hover, #copyButton:hover {
+#primaryButton:hover,
+QPushButton[variant="primary"]:hover {
     background-color: #374151;
-    border: 1px solid #374151;
 }
-#primaryButton:pressed, #secondaryButton:pressed, #copyButton:pressed {
+#primaryButton:pressed,
+QPushButton[variant="primary"]:pressed {
     background-color: #1f2937;
-    border: 1px solid #1f2937;
 }
 
-/* "Danger" button variant: setProperty("variant","danger") */
+/* Secondary (less emphasis) */
+#secondaryButton,
+QPushButton[variant="secondary"] {
+    background-color: rgba(75, 85, 99, 0.55);
+    border: 1px solid rgba(55, 65, 81, 1);
+}
+#secondaryButton:hover,
+QPushButton[variant="secondary"]:hover {
+    background-color: rgba(55, 65, 81, 0.85);
+}
+
+/* Danger */
 QPushButton[variant="danger"] {
     background-color: #374151;
     border: 1px solid #374151;
@@ -162,19 +295,72 @@ QPushButton[variant="danger"]:hover {
     border: 1px solid #1f2937;
 }
 
-/* ---------- Status Pill ---------- */
-#statusIndicator {
-    background-color: #1a1a1a;
-    border: 2px solid #10b981;
+/* Flat tool buttons (icon-only) */
+QToolButton {
+    background: transparent;
+    border: none;
+    padding: 6px;
+    border-radius: 8px;
+    color: #e5e7eb;
+}
+QToolButton:hover {
+    background: rgba(255,255,255,0.06);
+}
+QToolButton:pressed {
+    background: rgba(255,255,255,0.10);
+}
+
+/* =========================
+   Login-specific hooks (improved UI)
+   ========================= */
+#authToggle {
+    padding: 8px 14px;
+    border-radius: 10px;
+    background-color: rgba(75, 85, 99, 0.65);
+    border: 1px solid rgba(55, 65, 81, 1);
+    color: #ffffff;
+    font-weight: 800;
+}
+#authToggle:hover {
+    background-color: rgba(55, 65, 81, 0.85);
+}
+#authToggle:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #d4d4d8, stop:1 #71717a);
+    color: #111827;
+    border: 1px solid rgba(212,212,216,0.65);
+}
+
+/* Path pill styling */
+#pathPill {
+    background: transparent;
+    border: none;
+    padding: 10px 12px;
+    color: #d4d4d8;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    font-size: 12px;
+}
+
+/* =========================
+   Dashboard / Server screen
+   ========================= */
+
+/* QR frame */
+#qrCode {
+    background-color: #ffffff;
     border-radius: 12px;
-    padding: 10px 18px;
+    padding: 16px;
+}
+
+/* Status pill */
+#statusIndicator {
+    padding: 10px 16px;
 }
 #statusText {
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 800;
     color: #10b981;
 }
-/* Dot: best if you setFixedSize(12,12) on the label/widget */
 #statusIcon {
     background-color: #10b981;
     border-radius: 6px;
@@ -184,98 +370,98 @@ QPushButton[variant="danger"]:hover {
     max-height: 12px;
 }
 
-/* Disconnected variant: setProperty("state","disconnected") on statusIndicator */
+/* disconnected variant: setProperty("state","disconnected") on statusIndicator */
 #statusIndicator[state="disconnected"] {
-    border: 2px solid #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.95);
 }
-#statusIndicator[state="disconnected"] #statusText {
-    color: #ef4444;
-}
-#statusIndicator[state="disconnected"] #statusIcon {
-    background-color: #ef4444;
-}
+#statusIndicator[state="disconnected"] #statusText { color: #ef4444; }
+#statusIndicator[state="disconnected"] #statusIcon { background-color: #ef4444; }
 
-/* ---------- URL Text / Monospace Blocks ---------- */
-#urlText, QLabel[role="monoBlock"] {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 16px;
-    font-weight: 600;
+/* URL row (selectable text + copy) */
+#urlText {
     color: #10b981;
-    padding: 10px 12px;
     background-color: #0a0a0a;
     border: 1px solid #374151;
-    border-radius: 8px;
-}
-
-/* ---------- QR Code Frame ---------- */
-#qrCode {
-    background-color: #ffffff;
     border-radius: 10px;
-    padding: 16px;
+    padding: 10px 12px;
 }
 
-/* ---------- Helper / Hint text ---------- */
-#instructions, QLabel[role="hint"] {
-    font-family: "DM Sans", sans-serif;
-    font-size: 12px;
-    color: #9ca3af;
+/* Copy button */
+#copyButton,
+QPushButton[variant="copy"] {
+    background-color: rgba(75, 85, 99, 0.65);
+    border: 1px solid rgba(55, 65, 81, 1);
+}
+#copyButton:hover,
+QPushButton[variant="copy"]:hover {
+    background-color: rgba(55, 65, 81, 0.85);
 }
 
-/* ---------- Lists / Device Items (replace .device-item with role=...) ---------- */
-#deviceList, QWidget[role="deviceList"] {
+/* =========================
+   Lists / device items (role-based)
+   ========================= */
+QWidget[role="deviceList"] {
     background: transparent;
     border: none;
 }
+
 QWidget[role="deviceItem"] {
-    background-color: #0a0a0a;
+    background-color: rgba(55, 65, 81, 0.30);
     border: 1px solid #374151;
-    border-radius: 8px;
-    padding: 14px;
-}
-QLabel[role="deviceName"] {
-    font-family: "DM Sans", sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    color: #e5e7eb;
-}
-QLabel[role="deviceIp"] {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 12px;
-    color: #9ca3af;
-}
-QLabel[role="emptyState"] {
-    color: #9ca3af;
-    font-size: 13px;
-    padding: 24px;
+    border-radius: 12px;
+    padding: 12px 14px;
 }
 
-/* ---------- Notification Toast (Qt-friendly: role=notification + type=success|error|info) ---------- */
-QWidget[role="notification"] {
-    border-radius: 10px;
-    padding: 14px 18px;
-    font-family: "Space Grotesk", "DM Sans", sans-serif;
-    font-weight: 700;
+QLabel[role="deviceName"] {
+    color: #fafafa;
+    font-weight: 800;
     font-size: 14px;
+}
+
+QLabel[role="deviceIp"] {
+    color: #9ca3af;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+}
+
+QLabel[role="emptyState"] {
+    color: #9ca3af;
+    font-style: italic;
+    padding: 18px;
+}
+
+/* =========================
+   Toast notifications (role + type)
+   ========================= */
+QWidget[role="notification"] {
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-family: "Space Grotesk", "DM Sans", sans-serif;
+    font-weight: 800;
+    font-size: 13px;
     color: #ffffff;
     border: 1px solid rgba(255,255,255,0.18);
 }
-/* success */
+
 QWidget[role="notification"][type="success"] {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #10b981, stop:1 #059669);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #10b981, stop:1 #059669);
     border: 1px solid #34d399;
 }
-/* error */
 QWidget[role="notification"][type="error"] {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ef4444, stop:1 #dc2626);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #ef4444, stop:1 #dc2626);
     border: 1px solid #f87171;
 }
-/* info */
 QWidget[role="notification"][type="info"] {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3b82f6, stop:1 #2563eb);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #3b82f6, stop:1 #2563eb);
     border: 1px solid #60a5fa;
 }
 
-/* ---------- Scrollbars (match web) ---------- */
+/* =========================
+   Scrollbars (match web)
+   ========================= */
 QScrollBar:vertical {
     background: #0a0a0a;
     width: 8px;
@@ -322,10 +508,35 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     background: none;
 }
 
-/* ---------- Message Box ---------- */
+/* =========================
+   Tooltips / menus / dialogs
+   ========================= */
+QToolTip {
+    background: #111827;
+    color: #e5e7eb;
+    border: 1px solid #374151;
+    padding: 6px 8px;
+    border-radius: 10px;
+}
+
+QMenu {
+    background-color: #0a0a0a;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 6px;
+}
+QMenu::item {
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+QMenu::item:selected {
+    background: rgba(55, 65, 81, 0.55);
+}
+
+/* QMessageBox */
 QMessageBox {
     background-color: #1a1a1a;
-    border-radius: 10px;
+    border-radius: 12px;
 }
 QMessageBox QLabel {
     color: #e5e7eb;
@@ -336,10 +547,10 @@ QMessageBox QPushButton {
     background-color: #4b5563;
     color: #ffffff;
     border: 1px solid #4b5563;
-    border-radius: 6px;
+    border-radius: 10px;
     font-family: "DM Sans", sans-serif;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 800;
     padding: 8px 14px;
     min-width: 90px;
 }
@@ -350,4 +561,19 @@ QMessageBox QPushButton:hover {
 QMessageBox QPushButton:pressed {
     background-color: #1f2937;
     border: 1px solid #1f2937;
+}
+
+/* Optional: tab, group boxes */
+QGroupBox {
+    border: 1px solid #374151;
+    border-radius: 12px;
+    margin-top: 14px;
+    padding: 10px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 8px;
+    color: #9ca3af;
+    font-weight: 700;
 }
