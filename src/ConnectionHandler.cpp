@@ -7,7 +7,7 @@ namespace blade {
 ConnectionHandler::ConnectionHandler() : nextClientId_(0) {}
 
 ConnectionHandler::~ConnectionHandler() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard lock(mutex_);
     for (const auto& client : clients_) {
         if (client && client->socket != INVALID_SOCKET) {
             NetworkUtils::closeSocket(client->socket);

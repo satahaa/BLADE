@@ -36,15 +36,15 @@ MainWindow::MainWindow(QWidget* parent)
     Logger::getInstance().info("MainWindow initialized");
 }
 
-void MainWindow::onStartWithAuth(const QString& username, const QString& password) {
+void MainWindow::onStartWithAuth(const QString& password) {
     Logger::getInstance().info("Starting server with authentication");
 
-    if (username.trimmed().isEmpty() || password.trimmed().isEmpty()) {
-        showError("Authentication mode requires both username and password.");
+    if (password.trimmed().isEmpty()) {
+        showError("Authentication mode requires a password.");
         return;
     }
 
-    if (startServer(true, username, password)) {
+    if (startServer(true, password)) {
         const std::string ip = NetworkUtils::getLocalIPAddress();
         const QString url = QString::fromStdString("http://" + ip);
         showServerView(url);
@@ -61,7 +61,7 @@ void MainWindow::onStartNoAuth() {
     }
 }
 
-bool MainWindow::startServer(const bool withAuth, const QString& username, const QString& password) {
+bool MainWindow::startServer(const bool withAuth, const QString& password) {
     if (!NetworkUtils::initialize()) {
         Logger::getInstance().error("Failed to initialize network");
         showError("Failed to initialize network. Please check your connection.");
@@ -70,11 +70,9 @@ bool MainWindow::startServer(const bool withAuth, const QString& username, const
 
     try {
         if (withAuth) {
-            server_ = std::make_unique<Server>(8080, true,
-                                                      username.toStdString(),
-                                                      password.toStdString());
+            server_ = std::make_unique<Server>(8080, true, password.toStdString());
         } else {
-            server_ = std::make_unique<Server>(8080, false, "", "");
+            server_ = std::make_unique<Server>(8080, false, "");
         }
 
         if (!server_->start()) {
@@ -84,7 +82,7 @@ bool MainWindow::startServer(const bool withAuth, const QString& username, const
             return false;
         }
 
-        std::string ip = NetworkUtils::getLocalIPAddress();
+        const std::string ip = NetworkUtils::getLocalIPAddress();
         Logger::getInstance().info("Server started successfully on IP: " + ip);
         if (server_) {
             server_->setDownloadDirectory(loginWidget_->getDownloadPath().toStdString());

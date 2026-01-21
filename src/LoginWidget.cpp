@@ -52,16 +52,6 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
     formLayout->setSpacing(20);
     formLayout->setContentsMargins(40, 40, 40, 40);
 
-    auto* usernameLabel = new QLabel("Username:", this);
-    usernameLabel->setObjectName("fieldLabel");
-    formLayout->addWidget(usernameLabel);
-
-    usernameEdit_ = new QLineEdit(this);
-    usernameEdit_->setObjectName("inputField");
-    usernameEdit_->setPlaceholderText("Enter username");
-    usernameEdit_->setMinimumHeight(48);
-    formLayout->addWidget(usernameEdit_);
-
     auto* passwordLabel = new QLabel("Password:", this);
     passwordLabel->setObjectName("fieldLabel");
     formLayout->addWidget(passwordLabel);
@@ -90,7 +80,6 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
 
     connect(authModeCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](const int index) {
         const bool authEnabled = (index == 1);
-        usernameEdit_->setEnabled(authEnabled);
         passwordEdit_->setEnabled(authEnabled);
 
         startButton_->setText("Start");
@@ -108,7 +97,7 @@ LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
 
     connect(startButton_, &QPushButton::clicked, this, [this]() {
         if (authModeCombo_->currentIndex() == 1) {
-            emit startWithAuth(usernameEdit_->text(), passwordEdit_->text());
+            emit startWithAuth(passwordEdit_->text());
         } else {
             emit startNoAuth();
         }

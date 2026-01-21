@@ -8,7 +8,6 @@
 
 namespace blade {
 
-// Forward declaration
 class Server;
 
 /**
@@ -24,10 +23,9 @@ public:
      * @param webRoot Root directory for web files
      * @param server Pointer to the main server instance
      * @param useAuth Enable authentication
-     * @param username Username for authentication
      * @param password Password for authentication
      */
-    HTTPServer(int port, std::string webRoot, Server* server, bool useAuth = false, std::string username = "", std::string password = "");
+    HTTPServer(int port, std::string webRoot, Server* server, bool useAuth = false, std::string password = "");
 
     /**
      * @brief Destructor
@@ -62,7 +60,6 @@ private:
 
     // Authentication configuration
     bool useAuth_;
-    std::string username_;
     std::string password_;
 
     void run();

@@ -11,12 +11,12 @@
 
 namespace blade {
 
-HTTPServer::HTTPServer(const int port, std::string webRoot, Server* server, const bool useAuth, std::string username, std::string password)
+HTTPServer::HTTPServer(const int port, std::string webRoot, Server* server, const bool useAuth, std::string password)
     : port_(port), webRoot_(std::move(webRoot)), running_(false), server_(server),
-      useAuth_(useAuth), username_(std::move(username)), password_(std::move(password))
+      useAuth_(useAuth), password_(std::move(password))
 {
     Logger::getInstance().debug("HTTPServer constructor - useAuth_: " + std::string(useAuth_ ? "true" : "false") +
-                                ", username_: '" + username_ + "', password_: '" + password_ + "'");
+                                 + "', password_: '" + password_ + "'");
     Logger::getInstance().info("HTTP Server initialized on port " + std::to_string(port_));
 }
 
@@ -408,7 +408,6 @@ std::string HTTPServer::getAuthConfig() const {
     std::string json = "{";
     json += "\"authEnabled\":" + std::string(useAuth_ ? "true" : "false");
     if (useAuth_) {
-        json += R"(,"username":")" + username_ + "\"";
         json += R"(,"password":")" + password_ + "\"";
     }
     json += "}";

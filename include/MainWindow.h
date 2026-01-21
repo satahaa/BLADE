@@ -21,7 +21,7 @@ protected:
     void closeEvent(QCloseEvent* event) override;
 
 private slots:
-    void onStartWithAuth(const QString& username, const QString& password);
+    void onStartWithAuth(const QString& password);
     void onStartNoAuth();
 
     static void forceClose();
@@ -29,7 +29,7 @@ private slots:
 private:
     void showServerView(const QString& url) const;
     void showError(const QString& message);
-    bool startServer(bool withAuth, const QString& username = "", const QString& password = "");
+    bool startServer(bool withAuth, const QString& password = "");
 
     QStackedWidget* stackWidget_;
     LoginWidget* loginWidget_;

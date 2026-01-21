@@ -8,22 +8,22 @@
 
 namespace blade {
 
-Server::Server(const int port, const bool useAuth, const std::string& username, const std::string& password)
+Server::Server(const int port, const bool useAuth, const std::string& password)
     : port_(port), useAuth_(useAuth), running_(false) {
     authManager_ = std::make_unique<AuthenticationManager>();
 
     Logger::getInstance().debug("Server constructor - useAuth: " + std::string(useAuth ? "true" : "false") +
-                                ", username: '" + username + "', password: '" + password + "'");
+                                + "', password: '" + password + "'");
 
     // Register user credentials if authentication is enabled
-    if (useAuth_ && !username.empty() && !password.empty()) {
-        if (authManager_ && !authManager_->addUser(username, password)) {
-            Logger::getInstance().warning("Failed to add user credentials");
+    if (useAuth_ && !password.empty()) {
+        if (authManager_ && !authManager_->setPassword(password)) {
+            Logger::getInstance().warning("Failed to add password");
         }
     }
 
     connectionHandler_ = std::make_unique<ConnectionHandler>();
-    httpServer_ = std::make_unique<HTTPServer>(80, "./web", this, useAuth_, username, password); // Web interface on port 80 (HTTP)
+    httpServer_ = std::make_unique<HTTPServer>(80, "./web", this, useAuth, password); // Web interface on port 80 (HTTP)
 }
 
 Server::~Server() {
@@ -54,14 +54,11 @@ bool Server::start() {
 
     const std::string ip = NetworkUtils::getLocalIPAddress();
 
-    Logger::getInstance().info("========================================");
-    Logger::getInstance().info("   BLADE Server Started Successfully");
-    Logger::getInstance().info("========================================");
+    Logger::getInstance().info("BLADE Server Started Successfully");
     Logger::getInstance().info("Web Interface Access: http://" + ip);
     Logger::getInstance().info("File Transfer Port: " + std::to_string(port_));
     Logger::getInstance().info("Authentication: " + std::string(useAuth_ ? "ENABLED" : "DISABLED"));
     Logger::getInstance().info("Waiting for client connections...");
-    Logger::getInstance().info("========================================");
 
 
     return true;

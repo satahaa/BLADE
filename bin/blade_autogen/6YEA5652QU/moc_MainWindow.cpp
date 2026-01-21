@@ -41,7 +41,6 @@ static constexpr auto qt_meta_stringdata_ZN5blade10MainWindowE = QtMocHelpers::s
     "blade::MainWindow",
     "onStartWithAuth",
     "",
-    "username",
     "password",
     "onStartNoAuth",
     "forceClose"
@@ -64,12 +63,12 @@ Q_CONSTINIT static const uint qt_meta_data_ZN5blade10MainWindowE[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    2,   32,    2, 0x08,    1 /* Private */,
-       5,    0,   37,    2, 0x08,    4 /* Private */,
-       6,    0,   38,    2, 0x08,    5 /* Private */,
+       1,    1,   32,    2, 0x08,    1 /* Private */,
+       4,    0,   35,    2, 0x08,    3 /* Private */,
+       5,    0,   36,    2, 0x08,    4 /* Private */,
 
  // slots: parameters
-    QMetaType::Void, QMetaType::QString, QMetaType::QString,    3,    4,
+    QMetaType::Void, QMetaType::QString,    3,
     QMetaType::Void,
     QMetaType::Void,
 
@@ -88,7 +87,6 @@ Q_CONSTINIT const QMetaObject blade::MainWindow::staticMetaObject = { {
         // method 'onStartWithAuth'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         QtPrivate::TypeAndForceComplete<const QString &, std::false_type>,
-        QtPrivate::TypeAndForceComplete<const QString &, std::false_type>,
         // method 'onStartNoAuth'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'forceClose'
@@ -102,7 +100,7 @@ void blade::MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, in
     auto *_t = static_cast<MainWindow *>(_o);
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
-        case 0: _t->onStartWithAuth((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1])),(*reinterpret_cast< std::add_pointer_t<QString>>(_a[2]))); break;
+        case 0: _t->onStartWithAuth((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
         case 1: _t->onStartNoAuth(); break;
         case 2: _t->forceClose(); break;
         default: ;

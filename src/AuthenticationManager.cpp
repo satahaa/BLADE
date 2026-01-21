@@ -3,48 +3,29 @@
 #include <sstream>
 #include <iomanip>
 #include <functional>
-
 namespace blade {
-
-AuthenticationManager::AuthenticationManager() {
-    // Add a default admin user for demo purposes
-    addUser("admin", "admin123");
-}
 
 AuthenticationManager::~AuthenticationManager() = default;
 
-bool AuthenticationManager::addUser(const std::string& username, const std::string& password) {
+bool AuthenticationManager::setPassword(const std::string& password) {
     std::lock_guard lock(mutex_);
-    
-    if (users_.find(username) != users_.end()) {
-        return false; // User already exists
-    }
-    
-    users_[username] = hashPassword(password);
+    hashedPassword_ = hashPassword(password);
     return true;
 }
 
-std::string AuthenticationManager::authenticate(const std::string& username, const std::string& password) {
+std::string AuthenticationManager::authenticate(const std::string& password) {
     std::lock_guard lock(mutex_);
-    
-    auto it = users_.find(username);
-    if (it == users_.end()) {
-        return ""; // User not found
+    if (hashedPassword_.empty() || hashedPassword_ != hashPassword(password)) {
+        return ""; // Invalid password or not set
     }
-    
-    if (it->second != hashPassword(password)) {
-        return ""; // Invalid password
-    }
-    
-    // Generate and store token
     std::string token = generateToken();
-    tokens_[token] = username;
+    tokens_.insert(token);
     return token;
 }
 
 bool AuthenticationManager::validateToken(const std::string& token) {
     std::lock_guard lock(mutex_);
-    return tokens_.find(token) != tokens_.end();
+    return tokens_.contains(token);
 }
 
 void AuthenticationManager::invalidateToken(const std::string& token) {
@@ -52,18 +33,15 @@ void AuthenticationManager::invalidateToken(const std::string& token) {
     tokens_.erase(token);
 }
 
-bool AuthenticationManager::userExists(const std::string& username) {
-    std::lock_guard lock(mutex_);
-    return users_.find(username) != users_.end();
-}
-
 std::string AuthenticationManager::hashPassword(const std::string& password) {
-    // Simple hash for demonstration - in production, use bcrypt or similar
-    std::hash<std::string> hasher;
-    size_t hash = hasher(password + "BLADE_SALT");
-    
+    const std::string salted = password + "BLADE_SALT";
+    uint64_t hash = 14695981039346656037ull;
+    for (const char c : salted) {
+        hash ^= static_cast<uint64_t>(c);
+        hash *= 1099511628211ull;
+    }
     std::stringstream ss;
-    ss << std::hex << std::setfill('0') << std::setw(16) << hash;
+    ss << std::hex << std::setw(16) << std::setfill('0') << hash;
     return ss.str();
 }
 

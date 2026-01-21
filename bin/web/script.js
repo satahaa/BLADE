@@ -313,26 +313,21 @@ class BladeApp {
     }
 
     handleLogin() {
-        const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
 
         console.log('=== LOGIN ATTEMPT ===');
-        console.log('Entered username:', username);
         console.log('Entered password:', password);
-        console.log('Expected username:', this.authConfig?.username);
         console.log('Expected password:', this.authConfig?.password);
         console.log('Auth enabled:', this.authConfig?.authEnabled);
 
         // Check against server-provided credentials
         if (this.authConfig && this.authConfig.authEnabled) {
             // Exact string comparison
-            const usernameMatch = username === this.authConfig.username;
             const passwordMatch = password === this.authConfig.password;
 
-            console.log('Username match:', usernameMatch);
             console.log('Password match:', passwordMatch);
 
-            if (usernameMatch && passwordMatch) {
+            if (passwordMatch) {
                 console.log('Login successful!');
                 this.authenticated = true;
                 this.updateStatus('connected');

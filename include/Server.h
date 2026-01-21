@@ -28,10 +28,9 @@ public:
      * @brief Constructor
      * @param port Port number to listen on
      * @param useAuth Enable/disable authentication
-     * @param username Username for authentication (required if useAuth is true)
      * @param password Password for authentication (required if useAuth is true)
      */
-    explicit Server(int port, bool useAuth = true, const std::string& username = "", const std::string& password = "");
+    explicit Server(int port, bool useAuth = true, const std::string& password = "");
 
     /**
      * @brief Destructor
