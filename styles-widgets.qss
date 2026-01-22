@@ -20,9 +20,6 @@
    steel: #52525b
 ------------------------------------------ */
 
-/* =========================
-   Global base
-   ========================= */
 QWidget {
     background: transparent;
     color: #e5e7eb;
@@ -576,4 +573,12 @@ QGroupBox::title {
     padding: 0 8px;
     color: #9ca3af;
     font-weight: 700;
+}
+QStackedWidget {
+    background: transparent;
+    border: none;
+}
+QStackedWidget::pane {
+    background: transparent;
+    border: none;
 }

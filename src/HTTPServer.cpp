@@ -421,7 +421,7 @@ std::string HTTPServer::getConnectedDevicesJson() const {
     std::string json = "{\"devices\":[";
 
     if (server_) {
-        auto devices = server_->getConnectedDevices();
+        const auto devices = server_->getConnectedDevices();
         for (size_t i = 0; i < devices.size(); ++i) {
             json += "\"" + devices[i] + "\"";
             if (i < devices.size() - 1) {

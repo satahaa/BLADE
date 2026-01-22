@@ -3,22 +3,87 @@
 
 #include <QWidget>
 #include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QMap>
+#include <QStringList>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QToolButton>
+#include <QFileDialog>
+#include <QScrollArea>
+#include <QProgressBar>
+#include <QFrame>
+#include <QFont>
+#include <QImage>
+#include <QPixmap>
+#include <QMap>
+#include <QFileInfo>
+#include <QClipboard>
+#include <QApplication>
+#include <algorithm>
 
 namespace blade {
 
-class ServerWidget : public QWidget {
-    Q_OBJECT
+    // Forward declaration (defined in ServerWidget.cpp)
+    class FileProgressRow;
 
-public:
-    explicit ServerWidget(QWidget* parent = nullptr);
+    class ServerWidget : public QWidget {
+        Q_OBJECT
 
-    void setServerUrl(const QString& url) const;
+    public:
+        explicit ServerWidget(QWidget* parent = nullptr);
 
-private:
-    QLabel* statusLabel_{};
-    QLabel* urlLabel_;
-    QLabel* qrLabel_;
-};
+        // Server / pairing
+        void setServerUrl(const QString& url);
+
+        // Outgoing (selected files)
+        void setSelectedFiles(const QStringList& files);
+        void setOutgoingProgress(const QString& filePath, int percent);
+
+        // Incoming (received files)
+        void addReceivedFile(const QString& fileIdOrName);
+        void setReceivedProgress(const QString& fileIdOrName, int percent);
+
+        signals:
+            // User wants to stop server & go back to login
+            void backRequested();
+
+        // User clicked "Send" for selected files
+        void sendFilesRequested(const QStringList& files);
+
+    private:
+        // Top bar
+        QPushButton* backButton_ = nullptr;
+        QLabel* onlineLabel_ = nullptr;
+
+        // Pairing section
+        QLabel* qrLabel_ = nullptr;
+        QLabel* urlLabel_ = nullptr;
+        QPushButton* copyUrlButton_ = nullptr;
+
+        // Actions
+        QPushButton* selectFilesButton_ = nullptr;
+        QPushButton* sendButton_ = nullptr;
+
+        // Outgoing list
+        QWidget* outgoingList_ = nullptr;
+        QVBoxLayout* outgoingListLayout_ = nullptr;
+
+        // Incoming list
+        QWidget* incomingList_ = nullptr;
+        QVBoxLayout* incomingListLayout_ = nullptr;
+
+        // State
+        QString serverUrl_;
+        QStringList selectedFiles_;
+
+        // Progress rows
+        QMap<QString, FileProgressRow*> outgoingRows_;
+        QMap<QString, FileProgressRow*> incomingRows_;
+    };
 
 } // namespace blade
 

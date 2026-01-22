@@ -7,6 +7,7 @@
 #include "LoginWidget.h"
 #include "ServerWidget.h"
 #include "Server.h"
+#include "TitleBar.h"
 
 namespace blade {
 

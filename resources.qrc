@@ -7,14 +7,11 @@
         <file>icons/login.svg</file>
         <file>icons/back.svg</file>
         <file>icons/key.svg</file>
-        <file>icons/rocket_launch.svg</file>
+        <file>icons/minimize.svg</file>
+        <file>icons/close.svg</file>
         <file>icons/visibility.svg</file>
         <file>icons/visibility_off.svg</file>
-        <file>icons/qr_code.svg</file>
-        <file>icons/public.svg</file>
         <file>icons/folder.svg</file>
-        <file>icons/phone_android.svg</file>
-        <file>icons/check_circle.svg</file>
         <file>blade.ico</file>
         <file>blade.png</file>
         <file>styles-widgets.qss</file>

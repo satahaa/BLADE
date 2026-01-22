@@ -13,12 +13,25 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , server_(nullptr) {
 
-    setWindowTitle("BLADE - Bi-Directional LAN Asset Distribution Engine");
-    setFixedSize(800, 900);
+    setWindowTitle("BLADE");
+    setFixedSize(900, 900);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
 
-    // Create stacked widget for view switching
+    auto* central = new QWidget(this);
+    auto* layout = new QVBoxLayout(central);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    setCentralWidget(central);
+
+    auto* titleBar = new TitleBar(this);
+    layout->addWidget(titleBar);
+
     stackWidget_ = new QStackedWidget(this);
-    setCentralWidget(stackWidget_);
+    layout->addWidget(stackWidget_);
+    stackWidget_->setObjectName("stackWidget");
+    stackWidget_->setAutoFillBackground(false);
+    stackWidget_->setAttribute(Qt::WA_StyledBackground, false);
+    stackWidget_->setStyleSheet("#stackWidget { background: transparent; border: none; }");
 
     // Create login widget
     loginWidget_ = new LoginWidget(this);

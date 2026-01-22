@@ -10,7 +10,8 @@ static QPixmap svgPixmap(const QString& resPath, const QSize& size) {
 
 LoginWidget::LoginWidget(QWidget* parent) : QWidget(parent) {
     setObjectName("loginRoot");
-
+    setAttribute(Qt::WA_StyledBackground, true);
+    setAutoFillBackground(false);
     // ===== Root layout =====
     auto* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(56, 64, 56, 64);
