@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 #include <chrono>
+#include <condition_variable>
 #include <thread>
 #include <filesystem>
 #include "AuthenticationManager.h"
@@ -43,8 +44,24 @@ public:
      */
     bool start();
 
+    /**
+     * @brief Set the download directory for uploaded files
+     * @param path Path to the download directory
+     */
     void setDownloadDirectory(const std::string& path);
+
+    /**
+     * @brief Get the download directory
+     * @return Path to the download directory
+     */
     std::string getDownloadDirectory() const;
+
+    /**
+     * @brief Handle file upload
+     * @param filename Name of the uploaded file
+     * @param data File data as byte vector
+     * @return true if upload was successful
+     */
     bool handleUpload(const std::string& filename, const std::vector<uint8_t>& data) const;
     
     /**
@@ -106,6 +123,8 @@ private:
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> httpClientActivity_;
 
     mutable std::mutex ipMutex_;
+    mutable std::mutex stopMutex_;
+    std::condition_variable stopCv_;
 
     std::thread acceptThread_;
     std::thread cleanupThread_;

@@ -65,7 +65,7 @@ private:
     void run();
 
     void handleRequest(SocketType clientSocket) const;
-    static void setSocketTimeout(SocketType socket, int seconds) ;
+    static void setSocketTimeout(SocketType socket, int seconds = 5) ;
     static std::string getContentType(const std::string& path);
     static std::string loadFile(const std::string& path);
     [[nodiscard]] std::string getAuthConfig() const;

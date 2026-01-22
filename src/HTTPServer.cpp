@@ -99,11 +99,11 @@ void HTTPServer::run() {
 
 // Called from run() method which executes in a separate thread
 void HTTPServer::handleRequest(const SocketType clientSocket) const {
-    setSocketTimeout(clientSocket, 5);
+    setSocketTimeout(clientSocket);
 
     auto recvSome = [&](std::vector<uint8_t>& dst) -> int {
         uint8_t tmp[4096];
-        int n = NetworkUtils::receiveData(clientSocket, reinterpret_cast<char*>(tmp), sizeof(tmp));
+        const int n = NetworkUtils::receiveData(clientSocket, reinterpret_cast<char*>(tmp), sizeof(tmp));
         if (n > 0) dst.insert(dst.end(), tmp, tmp + n);
         return n;
     };

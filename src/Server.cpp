@@ -135,8 +135,13 @@ void Server::stop() {
     if (!running_) {
         return;
     }
-    
-    running_ = false;
+
+    {
+        std::lock_guard lock(stopMutex_);
+        running_ = false;
+    }
+    stopCv_.notify_all();
+
     Logger::getInstance().info("Server stop() reached");
     httpServer_->stop();
     NetworkUtils::cleanup();
@@ -161,12 +166,12 @@ void Server::setAuthRequired(const bool useAuth) {
 }
 
 std::vector<std::string> Server::getConnectedDevices() const {
-    std::lock_guard<std::mutex> lock(ipMutex_);
-    return std::vector(connectedIPs_.begin(), connectedIPs_.end());
+    std::lock_guard lock(ipMutex_);
+    return std::vector<std::string>{connectedIPs_.begin(), connectedIPs_.end()};
 }
 
 void Server::trackHTTPConnection(const std::string& clientIP) {
-    std::lock_guard<std::mutex> lock(ipMutex_);
+    std::lock_guard lock(ipMutex_);
 
     // Update the last activity timestamp for this client
     const auto now = std::chrono::steady_clock::now();
@@ -183,9 +188,9 @@ void Server::trackHTTPConnection(const std::string& clientIP) {
 
 void Server::cleanupInactiveHTTPClients() {
     while (running_) {
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
-        std::lock_guard<std::mutex> lock(ipMutex_);
+        std::lock_guard lock(ipMutex_);
         auto now = std::chrono::steady_clock::now();
 
         // Remove clients that haven't had activity in the last 10 seconds
@@ -279,7 +284,7 @@ void Server::acceptConnections() {
                         fd_set readfds;
                         FD_ZERO(&readfds);
                         FD_SET(clientSocket, &readfds);
-                        timeval tv;
+                        timeval tv{};
                         tv.tv_sec = 0;
                         tv.tv_usec = 500000; // 0.5s timeout
                         int selResult = select(clientSocket + 1, &readfds, nullptr, nullptr, &tv);
