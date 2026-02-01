@@ -1,12 +1,11 @@
 #include "ServerWidget.h"
-#include "QRCodeGen.h"
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QFont>
-#include <QApplication>
 #include <QClipboard>
-#include <QImage>
-#include <QPixmap>
+#include <QToolButton>
+#include <QProgressBar>
+#include <QScrollArea>
+#include <QRCodeGen.h>
+#include <QDragMoveEvent>
+#include <QMimeData>
 
 namespace blade {
 
@@ -26,226 +25,362 @@ static QImage generateQrCodeImage(const QString& data, int size = 280) {
     return image.scaled(size, size, Qt::KeepAspectRatio, Qt::FastTransformation);
 }
 
-// ---------- Helper widget: file row (name + progress) ----------
-class FileProgressRow final : public QWidget {
-public:
-    explicit FileProgressRow(const QString& title, QWidget* parent = nullptr)
-        : QWidget(parent) {
+static QFrame* makeCard(QWidget* parent, const QString& objName) {
+    auto* card = new QFrame(parent);
+    card->setObjectName(objName);
+    card->setFrameShape(QFrame::NoFrame);
+    card->setAttribute(Qt::WA_StyledBackground, true);
+    return card;
+}
 
-        setObjectName("fileItemRow");
+static QWidget* makeSectionTitle(const QString& title, QWidget* parent) {
+    auto* t = new QLabel(title, parent);
+    t->setObjectName("sectionTitle");
+    return t;
+}
+
+    static QString humanSize(qint64 bytes) {
+    return QLocale().formattedDataSize(bytes); // e.g. "2.4 MB"
+}
+
+    static QString iconForPath(const QString& filePath) {
+    QFileInfo fi(filePath);
+    const QString ext = fi.suffix().toLower();
+
+    // Quick common extensions first (fast + predictable)
+    static const QSet<QString> images = {"png","jpg","jpeg","webp","bmp","gif","svg"};
+    static const QSet<QString> videos = {"mp4","mkv","mov","avi","webm","flv","wmv"};
+    static const QSet<QString> audio  = {"mp3","wav","ogg","flac","m4a","aac"};
+    static const QSet<QString> docs   = {"pdf","doc","docx","ppt","pptx","xls","xlsx","txt","rtf"};
+    static const QSet<QString> code   = {"cpp","c","h","hpp","cc","cxx","py","js","ts","java","kt","cs","go","rs","php","rb","swift","html","css","json","xml","yaml","yml","md","sh"};
+
+    if (images.contains(ext)) return ":/icons/image.svg";
+    if (videos.contains(ext)) return ":/icons/video.svg";
+    if (audio.contains(ext))  return ":/icons/audio.svg";
+    if (docs.contains(ext))   return ":/icons/text.svg";
+    if (code.contains(ext))   return ":/icons/source_code.svg";
+
+    // Fallback: try MIME type (works well for many cases)
+    QMimeDatabase db;
+    const QMimeType mt = db.mimeTypeForFile(fi);
+    const QString m = mt.name(); // e.g. "image/png"
+
+    if (m.startsWith("image/")) return ":/icons/image.svg";
+    if (m.startsWith("video/")) return ":/icons/video.svg";
+    if (m.startsWith("audio/")) return ":/icons/audio.svg";
+    if (m == "application/pdf") return ":/icons/pdf.svg";
+    if (m.startsWith("text/"))  return ":/icons/text.svg";
+
+    return ":/icons/file.svg"; // final fallback
+}
+
+// Forward-declared in ServerWidget.h; full definition lives here.
+class FileCard final : public QWidget {
+public:
+    explicit FileCard(const QString& filePath, const bool showRemove, QWidget* parent = nullptr)
+        : QWidget(parent)
+    {
+        setObjectName("fileProgressRow");
+        setFixedHeight(74);
 
         auto* root = new QVBoxLayout(this);
-        root->setContentsMargins(14, 12, 14, 12);
+        root->setContentsMargins(12, 4, 12, 4);
         root->setSpacing(8);
 
-        name_ = new QLabel(title, this);
+        auto* top = new QWidget(this);
+        auto* topL = new QHBoxLayout(top);
+        topL->setContentsMargins(0, 0, 0, 0);
+        topL->setSpacing(10);
+
+        QFileInfo fi(filePath);
+
+        auto* icon = new QLabel(top);
+        icon->setObjectName("fileIcon");
+        icon->setFixedSize(18, 18);
+        icon->setPixmap(QIcon(iconForPath(filePath)).pixmap(18, 18));
+
+        name_ = new QLabel(fi.fileName(), top);
         name_->setObjectName("fileName");
-        name_->setWordWrap(true);
+        name_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+
+        removeBtn_ = new QToolButton(top);
+        removeBtn_->setObjectName("removeBtn");
+        removeBtn_->setCursor(Qt::PointingHandCursor);
+        removeBtn_->setAutoRaise(true);
+        removeBtn_->setIcon(QIcon(":/icons/close.svg"));
+        removeBtn_->setIconSize(QSize(18, 18));
+        removeBtn_->setVisible(showRemove);
+        removeBtn_->setFixedSize(28, 28);
+
+        topL->addWidget(icon);
+        topL->addWidget(name_);
+        topL->addWidget(removeBtn_);
 
         bar_ = new QProgressBar(this);
         bar_->setObjectName("fileProgress");
         bar_->setRange(0, 100);
         bar_->setValue(0);
         bar_->setTextVisible(false);
-        bar_->setFixedHeight(8);
+        bar_->setFixedHeight(7);
 
-        root->addWidget(name_);
+        size_ = new QLabel(this);
+        size_->setObjectName("fileSize");
+        if (fi.exists() && fi.isFile())
+            size_->setText(humanSize(fi.size()));
+        else
+            size_->setText("Unknown size");
+        size_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+        root->addWidget(top);
+        root->addWidget(size_);
         root->addWidget(bar_);
     }
 
-    void setProgress(const int pct) const {
-        bar_->setValue(std::clamp(pct, 0, 100));
-    }
+    void setProgress(const int pct) const { bar_->setValue(std::clamp(pct, 0, 100)); }
+    [[nodiscard]] QToolButton* removeButton() const { return removeBtn_; }
 
 private:
     QLabel* name_ = nullptr;
+    QLabel* size_ = nullptr;
+    QToolButton* removeBtn_ = nullptr;
     QProgressBar* bar_ = nullptr;
 };
 
-// ---------- Helper: section card with title ----------
-static QWidget* makeSectionCard(const QString& title, QWidget* parent, QWidget** bodyOut = nullptr) {
-    auto* card = new QWidget(parent);
-    card->setProperty("surface", "card");  // for your QSS
-    card->setObjectName("cardContainer");
-
-    auto* v = new QVBoxLayout(card);
-    v->setContentsMargins(22, 20, 22, 20);
-    v->setSpacing(14);
-
-    auto* t = new QLabel(title, card);
-    t->setProperty("role", "sectionTitle");
-    t->setObjectName("sectionTitle");
-    v->addWidget(t);
-
-    auto* body = new QWidget(card);
-    body->setObjectName("sectionBody");
-    auto* bodyLayout = new QVBoxLayout(body);
-    bodyLayout->setContentsMargins(0, 0, 0, 0);
-    bodyLayout->setSpacing(10);
-
-    v->addWidget(body);
-
-    if (bodyOut) *bodyOut = body;
-    return card;
-}
-
 ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
-    setObjectName("dashboardRoot");
+    setObjectName("serverWidgetRoot");
     setAttribute(Qt::WA_StyledBackground, true);
-    setAutoFillBackground(false);
+    setAttribute(Qt::WA_StyledBackground, true);
+    setAcceptDrops(true);
 
     // ================= Root layout =================
-    auto* mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(56, 44, 56, 44);
-    mainLayout->setSpacing(18);
+    auto* rootLayout = new QVBoxLayout(this);
+    rootLayout->setContentsMargins(18, 18, 18, 18);
+    rootLayout->setSpacing(14);
 
-    // ================= Top bar: Back + Online =================
+    // ================= Top bar (NO window buttons) =================
     auto* topBar = new QWidget(this);
     topBar->setObjectName("topBar");
-    auto* topBarLayout = new QHBoxLayout(topBar);
-    topBarLayout->setContentsMargins(0, 0, 0, 0);
-    topBarLayout->setSpacing(12);
+    auto* topL = new QHBoxLayout(topBar);
+    topL->setContentsMargins(0, 0, 0, 0);
+    topL->setSpacing(10);
 
-    backButton_ = new QPushButton("Back", topBar);
-    backButton_->setObjectName("secondaryButton");
+    backButton_ = new QPushButton(topBar);
+    backButton_->setObjectName("backBtn");
     backButton_->setCursor(Qt::PointingHandCursor);
+    backButton_->setIcon(QIcon(":/icons/back.svg"));
+    backButton_->setIconSize(QSize(22, 22));
+    backButton_->setText("");
+    backButton_->setStyleSheet(
+        "QPushButton#backBtn { background: transparent; border: none; }"
+        "QPushButton#backBtn:hover { background: #3d4552; }"
+    );
 
-    onlineLabel_ = new QLabel("Online", topBar);
-    onlineLabel_->setObjectName("onlineLabel");
-    onlineLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    // Replace the statusWrap/onlineLabel_ section in ServerWidget constructor:
 
-    // Big + green
-    QFont onlineFont;
-    onlineFont.setPointSize(24);
-    onlineFont.setBold(true);
-    onlineLabel_->setFont(onlineFont);
-    onlineLabel_->setStyleSheet("color: #10b981;"); // match your palette
+    auto* statusWrap = new QWidget(topBar);
+    statusWrap->setObjectName("statusWrap");
+    auto* statusL = new QHBoxLayout(statusWrap);
+    statusL->setContentsMargins(12, 2, 12, 10 );
+    statusL->setSpacing(8);
 
-    topBarLayout->addWidget(backButton_, 0, Qt::AlignLeft);
-    topBarLayout->addWidget(onlineLabel_, 0, Qt::AlignLeft);
-    topBarLayout->addStretch(1);
+    // Icon
+    auto* statusIcon = new QLabel(statusWrap);
+    statusIcon->setObjectName("statusIcon");
+    statusIcon->setFixedSize(32, 32);
+    statusIcon->setPixmap(QIcon(":/icons/connected.svg").pixmap(32, 32));
+    statusIcon->setScaledContents(true);
+    statusIcon->setStyleSheet("padding-top: 6px;");
 
-    mainLayout->addWidget(topBar);
+    // Text
+    onlineLabel_ = new QLabel("Online", statusWrap);
+    onlineLabel_->setObjectName("statusText");
+    onlineLabel_->setStyleSheet(
+        "font-size: 25px;"
+        "color: " + onlineLabel_->palette().color(QPalette::WindowText).name() + ";"
+    );
 
-    // ================= Top content row: QR left, URL right =================
-    auto* topRow = new QWidget(this);
-    topRow->setObjectName("topRow");
-    auto* topRowLayout = new QHBoxLayout(topRow);
-    topRowLayout->setContentsMargins(0, 0, 0, 0);
-    topRowLayout->setSpacing(18);
 
-    // ---- QR Card ----
-    QWidget* qrBody = nullptr;
-    auto* qrCard = makeSectionCard("Pairing QR", this, &qrBody);
-    qrCard->setObjectName("qrContainer");
+    // Add to layout
+    statusL->addWidget(statusIcon);
+    statusL->addWidget(onlineLabel_);
 
-    auto* qrBodyLayout = qobject_cast<QVBoxLayout*>(qrBody->layout());
-    qrLabel_ = new QLabel(qrBody);
+    // Style the wrapper
+    statusWrap->setStyleSheet(
+        "background: Transparent;"
+    );
+
+    // Center in window
+    topL->addStretch(1);
+    topL->addWidget(statusWrap, 0, Qt::AlignCenter);
+    topL->addStretch(1);
+
+    rootLayout->addWidget(topBar);
+
+    // ================= Main 2-column content =================
+
+    auto* content = new QWidget(this);
+    content->setObjectName("content");
+    auto* contentL = new QHBoxLayout(content);
+    contentL->setContentsMargins(0, 0, 0, 0);
+    contentL->setSpacing(16);
+    // ---------- Left card: QR + URL ----------
+    auto* leftCard = makeCard(content, "leftCard");
+    leftCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    auto* left = new QVBoxLayout(leftCard);
+    left->setContentsMargins(18, 18, 18, 18);
+    left->setSpacing(14);
+
+
+    // QR code box
+    auto* qrBox = new QFrame(leftCard);
+    qrBox->setObjectName("qrBox");
+    qrBox->setMinimumHeight(280);
+    auto* qrBoxL = new QVBoxLayout(qrBox);
+    qrBoxL->setContentsMargins(0, 0, 0, 0);
+    qrBoxL->setAlignment(Qt::AlignCenter);
+
+    qrLabel_ = new QLabel(qrBox);
     qrLabel_->setObjectName("qrCode");
     qrLabel_->setAlignment(Qt::AlignCenter);
-    qrLabel_->setMinimumSize(300, 300);
-    qrLabel_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    qrLabel_->setText("QR will appear here");
+    qrLabel_->setText("QR");
+    qrLabel_->setMinimumSize(220, 220);
+    qrBoxL->addWidget(qrLabel_);
 
-    qrBodyLayout->addWidget(qrLabel_);
+    left->addStretch(1);
+    // Add QR box to card
+    left->addWidget(qrBox);
 
-    // ---- URL Card ----
-    QWidget* urlBody = nullptr;
-    auto* urlCard = makeSectionCard("Browser URL", this, &urlBody);
-    urlCard->setObjectName("urlContainer");
+    // Divider between QR and URL
+    auto* divider = new QWidget(leftCard);
+    divider->setObjectName("cardDivider");
+    divider->setFixedHeight(1);
+    left->addWidget(divider);
 
-    auto* urlBodyLayout = qobject_cast<QVBoxLayout*>(urlBody->layout());
-
-    auto* urlRow = new QWidget(urlBody);
+    // URL row
+    auto* urlRow = new QWidget(leftCard);
     urlRow->setObjectName("urlRow");
-    urlRow->setProperty("role", "row");
-    auto* urlRowLayout = new QHBoxLayout(urlRow);
-    urlRowLayout->setContentsMargins(14, 10, 14, 10);
-    urlRowLayout->setSpacing(10);
+    auto* urlL = new QHBoxLayout(urlRow);
+    urlL->setContentsMargins(0, 0, 0, 0);
+    urlL->setSpacing(10);
 
     urlLabel_ = new QLabel(urlRow);
     urlLabel_->setObjectName("urlText");
     urlLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    urlLabel_->setWordWrap(true);
     urlLabel_->setText("http://0.0.0.0:0000");
+    urlLabel_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-    copyUrlButton_ = new QPushButton("Copy", urlRow);
-    copyUrlButton_->setObjectName("secondaryButton");
+    copyUrlButton_ = new QPushButton(urlRow);
+    copyUrlButton_->setObjectName("copyBtn");
     copyUrlButton_->setCursor(Qt::PointingHandCursor);
+    copyUrlButton_->setIcon(QIcon(":/icons/link.svg"));
+    copyUrlButton_->setIconSize(QSize(18, 18));
+    copyUrlButton_->setFixedSize(36, 30);
+    copyUrlButton_->setText("");
 
-    urlRowLayout->addWidget(urlLabel_, 1);
-    urlRowLayout->addWidget(copyUrlButton_, 0);
+    urlL->addWidget(urlLabel_, 1);
+    urlL->addWidget(copyUrlButton_, 0);
 
-    urlBodyLayout->addWidget(urlRow);
+    // Add URL row and hint
+    left->addWidget(urlRow);
 
-    auto* hint = new QLabel("Scan QR or open the URL to connect a device.", urlBody);
-    hint->setProperty("role", "hint");
-    hint->setObjectName("instructions");
-    urlBodyLayout->addWidget(hint);
+    auto* hint = new QLabel("Scan the QR or open the link in your browser to connect", leftCard);
+    hint->setObjectName("hintText");
+    hint->setWordWrap(true);
+    left->addWidget(hint);
 
-    // Add cards to top row
-    topRowLayout->addWidget(qrCard, 1);
-    topRowLayout->addWidget(urlCard, 1);
+    left->addStretch(1);
+    // ---------- Right column: Send Files + Received Files ----------
+    auto* rightCol = new QWidget(content);
+    rightCol->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    rightCol->setObjectName("rightCol");
+    auto* right = new QVBoxLayout(rightCol);
+    right->setContentsMargins(0, 0, 0, 0);
+    right->setSpacing(16);
 
-    mainLayout->addWidget(topRow);
+    // Send Files card
+    auto* sendCard = makeCard(rightCol, "sendCard");
+    sendCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    auto* send = new QVBoxLayout(sendCard);
+    send->setContentsMargins(18, 18, 18, 18);
+    send->setSpacing(4);
 
-    // ================= Actions row: Select files + Send =================
-    auto* actionsRow = new QWidget(this);
-    actionsRow->setObjectName("actionsRow");
-    auto* actionsLayout = new QHBoxLayout(actionsRow);
-    actionsLayout->setContentsMargins(0, 0, 0, 0);
-    actionsLayout->setSpacing(12);
+    send->addWidget(makeSectionTitle("Send Files", sendCard));
 
-    selectFilesButton_ = new QPushButton("Select Files", actionsRow);
-    selectFilesButton_->setObjectName("secondaryButton");
+    dropZone_ = new QFrame(sendCard);
+    auto* dropZone = dropZone_;
+    //dropZone->setMinimumHeight(240);
+    dropZone->setProperty("dropTarget", true);
+    dropZone->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+    auto* dzL = new QVBoxLayout(dropZone);
+    dzL->setAlignment(Qt::AlignCenter);
+
+    dropHintLabel_ = new QLabel("Drag and Drop Files", dropZone);
+    dropHintLabel_->setObjectName("dropText");
+    dropHintLabel_->setAlignment(Qt::AlignCenter);
+    dzL->addWidget(dropHintLabel_);
+
+    auto* actionRow = new QWidget(sendCard);
+    actionRow->setObjectName("sendActions");
+    auto* act = new QHBoxLayout(actionRow);
+    act->setContentsMargins(0, 0, 0, 0);
+    act->setSpacing(10);
+
+    selectFilesButton_ = new QPushButton(actionRow);
+    selectFilesButton_->setObjectName("browseBtn");
     selectFilesButton_->setCursor(Qt::PointingHandCursor);
+    selectFilesButton_->setIcon(QIcon(":/icons/folder.svg"));
+    selectFilesButton_->setIconSize(QSize(20, 20));
+    selectFilesButton_->setFixedSize(44, 34);
+    selectFilesButton_->setText("");
 
-    sendButton_ = new QPushButton("Send", actionsRow);
-    sendButton_->setObjectName("primaryButton");
+    sendButton_ = new QPushButton(actionRow);
+    sendButton_->setObjectName("sendBtn");
     sendButton_->setCursor(Qt::PointingHandCursor);
+    sendButton_->setIcon(QIcon(":/icons/send.svg"));
+    sendButton_->setIconSize(QSize(20, 20));
+    sendButton_->setFixedSize(44, 34);
+    sendButton_->setText("");
     sendButton_->setEnabled(false);
 
-    actionsLayout->addWidget(selectFilesButton_, 0, Qt::AlignLeft);
-    actionsLayout->addStretch(1);
-    actionsLayout->addWidget(sendButton_, 0, Qt::AlignRight);
+    act->addWidget(selectFilesButton_);
+    act->addStretch(1);
+    act->addWidget(sendButton_);
 
-    mainLayout->addWidget(actionsRow);
-
-    // ================= Bottom row: Selected / Received sections =================
-    auto* bottomRow = new QWidget(this);
-    bottomRow->setObjectName("bottomRow");
-    auto* bottomLayout = new QHBoxLayout(bottomRow);
-    bottomLayout->setContentsMargins(0, 0, 0, 0);
-    bottomLayout->setSpacing(18);
-
-    // ---- Selected Files Section ----
-    QWidget* outgoingBody = nullptr;
-    auto* outgoingCard = makeSectionCard("Selected Files", this, &outgoingBody);
-    outgoingCard->setObjectName("outgoingContainer");
-
-    outgoingList_ = new QWidget(outgoingBody);
+    outgoingList_ = new QWidget(sendCard);
     outgoingList_->setObjectName("outgoingList");
-    outgoingList_->setProperty("role", "deviceList"); // reusing list styling hook if you have one
+    outgoingList_->setVisible(false);
 
     outgoingListLayout_ = new QVBoxLayout(outgoingList_);
     outgoingListLayout_->setContentsMargins(0, 0, 0, 0);
     outgoingListLayout_->setSpacing(10);
     outgoingListLayout_->addStretch(1);
 
-    auto* outgoingScroll = new QScrollArea(outgoingBody);
-    outgoingScroll->setObjectName("outgoingScroll");
-    outgoingScroll->setWidgetResizable(true);
-    outgoingScroll->setFrameShape(QFrame::NoFrame);
-    outgoingScroll->setWidget(outgoingList_);
+    outgoingScroll_ = new QScrollArea(sendCard);
+    outgoingScroll_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    outgoingScroll_->setObjectName("outgoingScroll");
+    outgoingScroll_->setWidgetResizable(true);
+    outgoingScroll_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    outgoingScroll_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    outgoingScroll_->setFrameShape(QFrame::NoFrame);
+    outgoingScroll_->setWidget(outgoingList_);
+    outgoingScroll_->setVisible(false);
 
-    qobject_cast<QVBoxLayout*>(outgoingBody->layout())->addWidget(outgoingScroll);
+    send->addWidget(dropZone, 1);
+    send->addWidget(outgoingScroll_, 1);
+    send->addWidget(actionRow, 0);
 
-    // ---- Received Files Section ----
-    QWidget* incomingBody = nullptr;
-    auto* incomingCard = makeSectionCard("Received Files", this, &incomingBody);
-    incomingCard->setObjectName("incomingContainer");
+    // Received Files card
+    auto* recvCard = makeCard(rightCol, "recvCard");
+    auto* recv = new QVBoxLayout(recvCard);
+    recvCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    recv->setContentsMargins(18, 18, 18, 18);
+    recv->setSpacing(12);
 
-    incomingList_ = new QWidget(incomingBody);
+    recv->addWidget(makeSectionTitle("Received Files", recvCard));
+
+    incomingList_ = new QWidget(recvCard);
     incomingList_->setObjectName("incomingList");
 
     incomingListLayout_ = new QVBoxLayout(incomingList_);
@@ -253,33 +388,36 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     incomingListLayout_->setSpacing(10);
     incomingListLayout_->addStretch(1);
 
-    auto* incomingScroll = new QScrollArea(incomingBody);
+    right->addWidget(sendCard, 1);
+    right->setStretch(0, 1);
+
+    right->addWidget(recvCard, 1);
+    right->setStretch(1, 1);
+
+    auto* incomingScroll = new QScrollArea(recvCard);
     incomingScroll->setObjectName("incomingScroll");
     incomingScroll->setWidgetResizable(true);
     incomingScroll->setFrameShape(QFrame::NoFrame);
     incomingScroll->setWidget(incomingList_);
 
-    qobject_cast<QVBoxLayout*>(incomingBody->layout())->addWidget(incomingScroll);
+    recv->addWidget(incomingScroll);
 
-    bottomLayout->addWidget(outgoingCard, 1);
-    bottomLayout->addWidget(incomingCard, 1);
+    contentL->addWidget(leftCard, 1);
+    contentL->addWidget(rightCol, 1);
 
-    mainLayout->addWidget(bottomRow, 1);
+    rootLayout->addWidget(content, 1);
 
-    // ================= Signals / actions =================
-    connect(backButton_, &QPushButton::clicked, this, [this]() {
-        emit backRequested(); // you implement: stop server + navigate to login
-    });
+    // ================= Signals =================
+    connect(backButton_, &QPushButton::clicked, this, [this]() { emit backRequested(); });
 
     connect(copyUrlButton_, &QPushButton::clicked, this, [this]() {
         QApplication::clipboard()->setText(urlLabel_->text());
     });
 
     connect(selectFilesButton_, &QPushButton::clicked, this, [this]() {
-        const QStringList files = QFileDialog::getOpenFileNames(this, "Select Files");
-        if (!files.isEmpty()) {
+        if (const QStringList files = QFileDialog::getOpenFileNames(this, "Select Files");
+            !files.isEmpty())
             setSelectedFiles(files);
-        }
     });
 
     connect(sendButton_, &QPushButton::clicked, this, [this]() {
@@ -288,77 +426,133 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     });
 }
 
-// ================= Public API you can call from outside =================
-
 void ServerWidget::setServerUrl(const QString& url) {
     serverUrl_ = url;
     urlLabel_->setText(url);
 
-    // Render QR
     if (const QImage qrImg = generateQrCodeImage(url); !qrImg.isNull()) {
-        constexpr int target = 280;
+        constexpr int target = 260;
         qrLabel_->setPixmap(QPixmap::fromImage(qrImg).scaled(target, target, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        qrLabel_->setText("");
     } else {
         qrLabel_->setText("Failed to generate QR code");
     }
 }
 
 void ServerWidget::setSelectedFiles(const QStringList& files) {
-    selectedFiles_ = files;
+    for (const QString& f : files) {
+        if (!selectedFiles_.contains(f))
+            selectedFiles_.append(f);
+    }
+    outgoingList_->setVisible(!selectedFiles_.isEmpty());
+    dropHintLabel_->setVisible(selectedFiles_.isEmpty());
+    outgoingScroll_->setVisible(!selectedFiles_.isEmpty());
     sendButton_->setEnabled(!selectedFiles_.isEmpty());
+    dropZone_->setVisible(selectedFiles_.isEmpty());
 
-    // Clear old rows
-    qDeleteAll(outgoingRows_);
-    outgoingRows_.clear();
-
-    // Remove all items but stretch
-    while (outgoingListLayout_->count() > 0) {
-        auto* item = outgoingListLayout_->takeAt(0);
-        if (item->widget()) item->widget()->deleteLater();
-        delete item;
+    // remove bottom stretch if present (so we can append above it)
+    if (outgoingListLayout_->count() > 0) {
+        if (QLayoutItem* last = outgoingListLayout_->itemAt(outgoingListLayout_->count() - 1); last && last->spacerItem()) {
+            outgoingListLayout_->takeAt(outgoingListLayout_->count() - 1);
+            delete last;
+        }
     }
 
-    // Rebuild list
+    // add rows only for files that don't already have a row
     for (const QString& path : selectedFiles_) {
-        const QString name = QFileInfo(path).fileName();
-        auto* row = new FileProgressRow(name, outgoingList_);
+        if (outgoingRows_.contains(path))
+            continue;
+
+        auto* row = new FileCard(path, /*showRemove*/ true, outgoingList_);
+
         outgoingRows_.insert(path, row);
         outgoingListLayout_->addWidget(row);
+
+        connect(row->removeButton(), &QToolButton::clicked, this, [this, path, row]() {
+            outgoingRows_.remove(path);
+            selectedFiles_.removeAll(path);
+            row->deleteLater();
+
+            const bool empty = selectedFiles_.isEmpty();
+            outgoingScroll_->setVisible(!empty);
+            outgoingList_->setVisible(!empty);
+            dropZone_->setVisible(empty);
+            dropHintLabel_->setVisible(empty);
+            sendButton_->setEnabled(!empty);
+        });
     }
+
+    // add the stretch back (push rows to top)
     outgoingListLayout_->addStretch(1);
 }
 
-void ServerWidget::setOutgoingProgress(const QString& filePath, const int percent) {
-    if (outgoingRows_.contains(filePath))
-        outgoingRows_[filePath]->setProgress(percent);
+void ServerWidget::setOutgoingProgress(const QString& filePath, const int percent) const {
+    if (const auto* row = outgoingRows_.value(filePath, nullptr)) {
+        row->setProgress(percent);
+    }
 }
 
 void ServerWidget::addReceivedFile(const QString& fileIdOrName) {
-    if (incomingRows_.contains(fileIdOrName))
-        return;
+    if (incomingRows_.contains(fileIdOrName)) return;
 
-    // Remove layout stretch temporarily
+    // remove stretch
     if (incomingListLayout_->count() > 0) {
-        QLayoutItem* last = incomingListLayout_->itemAt(incomingListLayout_->count() - 1);
-        if (last && last->spacerItem()) {
+        if (QLayoutItem* last = incomingListLayout_->itemAt(incomingListLayout_->count() - 1);
+            last && last->spacerItem()) {
             incomingListLayout_->takeAt(incomingListLayout_->count() - 1);
             delete last;
         }
     }
 
-    auto* row = new FileProgressRow(fileIdOrName, incomingList_);
+    auto* row = new FileCard(fileIdOrName, /*showRemove*/ true, incomingList_);
     incomingRows_.insert(fileIdOrName, row);
+
+    connect(row->removeButton(), &QToolButton::clicked, this, [this, fileIdOrName, row]() {
+        incomingRows_.remove(fileIdOrName);
+        row->deleteLater();
+    });
+
     incomingListLayout_->addWidget(row);
     incomingListLayout_->addStretch(1);
 }
 
-void ServerWidget::setReceivedProgress(const QString& fileIdOrName, int percent) {
-    if (!incomingRows_.contains(fileIdOrName))
-        addReceivedFile(fileIdOrName);
-
-    incomingRows_[fileIdOrName]->setProgress(percent);
+void ServerWidget::setReceivedProgress(const QString& fileIdOrName, const int percent) {
+    if (!incomingRows_.contains(fileIdOrName)) addReceivedFile(fileIdOrName);
+    if (const auto* row = incomingRows_.value(fileIdOrName, nullptr)) row->setProgress(percent);
+}
+    void ServerWidget::dragEnterEvent(QDragEnterEvent* event) {
+    if (event->mimeData() && event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
 }
 
-} // namespace blade
+    void ServerWidget::dragMoveEvent(QDragMoveEvent* event) {
+    if (event->mimeData() && event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
 
+    void ServerWidget::dropEvent(QDropEvent* event) {
+    if (!event->mimeData() || !event->mimeData()->hasUrls())
+        return;
+
+    QStringList files;
+    const auto urls = event->mimeData()->urls();
+    for (const QUrl& url : urls) {
+        if (url.isLocalFile()) {
+            const QString path = url.toLocalFile();
+            QFileInfo fi(path);
+            if (fi.exists() && fi.isFile())
+                files << path;
+        }
+    }
+
+    if (!files.isEmpty()) {
+        setSelectedFiles(files);
+        outgoingList_->setVisible(true);
+    }
+
+    event->acceptProposedAction();
+}
+
+
+} // namespace blade

@@ -41,6 +41,7 @@ private:
     QSettings settings_;
 };
 
+
 } // namespace blade
 
 #endif // BLADE_LOGINWIDGET_H

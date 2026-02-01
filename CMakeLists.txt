@@ -66,7 +66,7 @@ set(HEADERS
     include/NetworkUtils.h
     include/QRCodeGen.h
     include/Logger.h
-        include/TitleBar.h
+    include/TitleBar.h
 )
 
 set(RESOURCES
@@ -129,9 +129,6 @@ add_custom_command(TARGET blade POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/styles-widgets.qss"
         "$<TARGET_FILE_DIR:blade>/styles-widgets.qss"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/web"
-        "$<TARGET_FILE_DIR:blade>/web"
     COMMENT "Copying runtime assets to build output folder..."
 )
 
@@ -191,9 +188,6 @@ add_custom_command(TARGET blade POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_SOURCE_DIR}/styles-widgets.qss"
         "${DEPLOY_DIR}/styles-widgets.qss"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/web"
-        "${DEPLOY_DIR}/web"
     COMMENT "Copying assets to bin folder..."
 )
 

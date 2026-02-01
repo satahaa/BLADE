@@ -12,9 +12,18 @@
         <file>icons/visibility.svg</file>
         <file>icons/visibility_off.svg</file>
         <file>icons/folder.svg</file>
+        <file>icons/connected.svg</file>
+        <file>icons/disconnected.svg</file>
+        <file>icons/text.svg</file>
+        <file>icons/audio.svg</file>
+        <file>icons/video.svg</file>
+        <file>icons/image.svg</file>
+        <file>icons/source_code.svg</file>
+        <file>icons/send.svg</file>
+        <file>icons/link.svg</file>
+
         <file>blade.ico</file>
         <file>blade.png</file>
         <file>styles-widgets.qss</file>
     </qresource>
 </RCC>
-

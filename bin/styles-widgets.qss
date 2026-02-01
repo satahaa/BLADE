@@ -93,7 +93,6 @@ QLabel[role="monoBlock"],
 /* =========================
    Cards / surfaces (web .card)
    ========================= */
-#loginCard,
 #formContainer,
 #cardContainer,
 #qrContainer,
@@ -581,4 +580,36 @@ QStackedWidget {
 QStackedWidget::pane {
     background: transparent;
     border: none;
+}
+
+#leftCard, #sendCard, #recvCard, #loginCard {
+    background: #1a1a1a;
+    border-radius: 18px;
+    border: 1.5px solid #353a44;
+}
+
+#cardDivider {
+    background: #353a44;
+    min-height: 1px;
+    max-height: 1px;
+    margin: 12px 0;
+}
+QToolButton#removeBtn {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 0px;
+}
+
+QToolButton#removeBtn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+QToolButton#removeBtn:pressed {
+    background: rgba(255, 255, 255, 0.14);
+}
+QLabel#fileSize {
+    font-size: 11px;
+    color: #9ca3af;          /* adjust */
+    padding-left: 28px;      /* aligns with text after icon */
 }

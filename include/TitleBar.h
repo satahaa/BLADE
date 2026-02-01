@@ -2,8 +2,8 @@
 // Created by satahaa on 22-Jan-26.
 //
 
-#ifndef TITLEBAR_H
-#define TITLEBAR_H
+#ifndef BLADE_TITLEBAR_H
+#define BLADE_TITLEBAR_H
 #pragma once
 #include <QWidget>
 #include <QToolButton>
@@ -69,10 +69,10 @@ private:
     QString closeBtnStyle =  "QToolButton { border: none; background: transparent; padding-top: 12px;}"
                         "QToolButton:hover { background:#5c2828; padding-top: 12px; }"
                         "QToolButton:pressed { background: transparent; padding-top: 12px; }";
-    QString minimizeBtnStyle =  "QToolButton { border: none; background: transparent; padding-bottom: 4px; }"
-                        "QToolButton:hover { background: #3d4552; padding-bottom: 4px; }"
-                        "QToolButton:pressed { background: transparent; padding-bottom: 4px; }";
+    QString minimizeBtnStyle =  "QToolButton { border: none; background: transparent; padding-bottom: 12px; }"
+                        "QToolButton:hover { background: #3d4552; padding-bottom: 12px; }"
+                        "QToolButton:pressed { background: transparent; padding-bottom: 12px; }";
     QPoint m_dragPos;
     bool m_dragging = false;
 };
-#endif //TITLEBAR_H
+#endif //BLADE_TITLEBAR_H

@@ -17,6 +17,8 @@ MainWindow::MainWindow(QWidget* parent)
     setFixedSize(900, 900);
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
 
+    setStyleSheet("QMainWindow { border-radius: 32px; }");
+
     auto* central = new QWidget(this);
     auto* layout = new QVBoxLayout(central);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -47,6 +49,13 @@ MainWindow::MainWindow(QWidget* parent)
     stackWidget_->setCurrentWidget(loginWidget_);
 
     Logger::getInstance().info("MainWindow initialized");
+    connect(serverWidget_, &ServerWidget::backRequested, this, [this]() {
+        if (server_) {
+            server_->stop();
+            server_.reset();
+        }
+        stackWidget_->setCurrentWidget(loginWidget_);
+    });
 }
 
 void MainWindow::onStartWithAuth(const QString& password) {

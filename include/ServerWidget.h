@@ -1,34 +1,23 @@
 #ifndef BLADE_SERVERWIDGET_H
 #define BLADE_SERVERWIDGET_H
 
-#include <QWidget>
 #include <QLabel>
+#include <QWidget>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QMap>
 #include <QStringList>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QPushButton>
-#include <QToolButton>
 #include <QFileDialog>
-#include <QScrollArea>
-#include <QProgressBar>
-#include <QFrame>
-#include <QFont>
-#include <QImage>
-#include <QPixmap>
-#include <QMap>
-#include <QFileInfo>
-#include <QClipboard>
 #include <QApplication>
-#include <algorithm>
+#include <QMimeDatabase>
+#include <QDragEnterEvent>
+#include <QScrollArea>
+
 
 namespace blade {
 
     // Forward declaration (defined in ServerWidget.cpp)
-    class FileProgressRow;
+    class FileCard;
 
     class ServerWidget : public QWidget {
         Q_OBJECT
@@ -41,14 +30,14 @@ namespace blade {
 
         // Outgoing (selected files)
         void setSelectedFiles(const QStringList& files);
-        void setOutgoingProgress(const QString& filePath, int percent);
+        void setOutgoingProgress(const QString& filePath, int percent) const;
 
         // Incoming (received files)
         void addReceivedFile(const QString& fileIdOrName);
         void setReceivedProgress(const QString& fileIdOrName, int percent);
 
         signals:
-            // User wants to stop server & go back to login
+            // User wants to stop server & go back
             void backRequested();
 
         // User clicked "Send" for selected files
@@ -68,11 +57,14 @@ namespace blade {
         QPushButton* selectFilesButton_ = nullptr;
         QPushButton* sendButton_ = nullptr;
 
-        // Outgoing list
+        // Outgoing list (optional, hidden)
+        QFrame* dropZone_ = nullptr;
+        QLabel* dropHintLabel_ = nullptr;
+        QScrollArea* outgoingScroll_ = nullptr;
         QWidget* outgoingList_ = nullptr;
         QVBoxLayout* outgoingListLayout_ = nullptr;
 
-        // Incoming list
+        // Incoming list (scroll area content)
         QWidget* incomingList_ = nullptr;
         QVBoxLayout* incomingListLayout_ = nullptr;
 
@@ -81,8 +73,13 @@ namespace blade {
         QStringList selectedFiles_;
 
         // Progress rows
-        QMap<QString, FileProgressRow*> outgoingRows_;
-        QMap<QString, FileProgressRow*> incomingRows_;
+        QMap<QString, FileCard*> outgoingRows_;
+        QMap<QString, FileCard*> incomingRows_;
+
+    protected:
+        void dragEnterEvent(QDragEnterEvent* event) override;
+        void dragMoveEvent(QDragMoveEvent* event) override;
+        void dropEvent(QDropEvent* event) override;
     };
 
 } // namespace blade
