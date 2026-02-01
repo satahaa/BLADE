@@ -269,7 +269,7 @@ void HTTPServer::handleRequest(const SocketType clientSocket, const std::string&
             size_t dataEnd = nextBoundary;
 
             if (std::vector fileData(body.begin() + dataStart, body.begin() + dataEnd);
-                server_ && server_->handleUpload(filename, fileData)) {
+                server_ && server_->handleUpload(filename, fileData, fileData.size())) {
                 anyOk = true;
             }
 
@@ -283,6 +283,70 @@ void HTTPServer::handleRequest(const SocketType clientSocket, const std::string&
         return;
     }
     // --- End file upload handling ---
+
+    // --- Handle file upload announcement (notify UI before upload starts) ---
+    if (path == "/api/upload/announce" && method == "POST") {
+        // Read body
+        std::string cl = getHeaderValue("Content-Length");
+        size_t contentLength = 0;
+        if (!cl.empty()) {
+            try { contentLength = std::stoull(cl); }
+            catch (...) { contentLength = 0; }
+        }
+
+        // Read body data
+        while (raw.size() - bodyStart < contentLength) {
+            if (int n = recvSome(raw); n <= 0)
+                break;
+        }
+
+        // Parse JSON body for filename and size
+        std::string bodyStr(raw.begin() + bodyStart, raw.begin() + bodyStart + contentLength);
+
+        // Simple JSON parsing for {"filename": "...", "size": ...}
+        std::string filename;
+        uint64_t fileSize = 0;
+
+        // Extract filename
+        if (size_t fnPos = bodyStr.find("\"filename\""); fnPos != std::string::npos) {
+            size_t colonPos = bodyStr.find(':', fnPos);
+            if (colonPos != std::string::npos) {
+                size_t quoteStart = bodyStr.find('"', colonPos + 1);
+                if (quoteStart != std::string::npos) {
+                    size_t quoteEnd = bodyStr.find('"', quoteStart + 1);
+                    if (quoteEnd != std::string::npos) {
+                        filename = bodyStr.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
+                    }
+                }
+            }
+        }
+
+        // Extract size
+        if (size_t szPos = bodyStr.find("\"size\""); szPos != std::string::npos) {
+            size_t colonPos = bodyStr.find(':', szPos);
+            if (colonPos != std::string::npos) {
+                size_t numStart = colonPos + 1;
+                while (numStart < bodyStr.size() && (bodyStr[numStart] == ' ' || bodyStr[numStart] == '\t')) ++numStart;
+                size_t numEnd = numStart;
+                while (numEnd < bodyStr.size() && bodyStr[numEnd] >= '0' && bodyStr[numEnd] <= '9') ++numEnd;
+                if (numEnd > numStart) {
+                    try { fileSize = std::stoull(bodyStr.substr(numStart, numEnd - numStart)); }
+                    catch (...) { fileSize = 0; }
+                }
+            }
+        }
+
+        std::string resp;
+        if (!filename.empty() && server_) {
+            server_->announceIncomingFile(filename, fileSize);
+            resp = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"status\":\"ok\"}";
+        } else {
+            resp = "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: 18\r\nConnection: close\r\n\r\n{\"status\":\"error\"}";
+        }
+        (void)NetworkUtils::sendData(clientSocket, resp);
+        return;
+    }
+    // --- End upload announcement handling ---
 
     // Handle heartbeat endpoint
     if (path == "/api/heartbeat") {
@@ -663,7 +727,7 @@ void HTTPServer::handleFileDownload(const SocketType clientSocket, const std::st
     }
 
     // Stream file content in chunks
-    constexpr size_t CHUNK_SIZE = 64 * 1024;
+    constexpr size_t CHUNK_SIZE = 256 * 1024; // 256KB chunks for faster transfer
     std::vector<char> buffer(CHUNK_SIZE);
     uint64_t sent = 0;
     bool transferFailed = false;

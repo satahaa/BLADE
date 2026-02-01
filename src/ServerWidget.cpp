@@ -80,7 +80,7 @@ static QWidget* makeSectionTitle(const QString& title, QWidget* parent) {
 // Forward-declared in ServerWidget.h; full definition lives here.
 class FileCard final : public QWidget {
 public:
-    explicit FileCard(const QString& filePath, const bool showRemove, QWidget* parent = nullptr)
+    explicit FileCard(const QString& filePath, const bool showRemove, QWidget* parent = nullptr, const qint64 knownSize = -1)
         : QWidget(parent)
     {
         setObjectName("fileProgressRow");
@@ -135,10 +135,15 @@ public:
 
         size_ = new QLabel(this);
         size_->setObjectName("fileSize");
-        if (fi.exists() && fi.isFile())
+
+        // Use known size if provided, otherwise try to get from file info
+        if (knownSize >= 0) {
+            size_->setText(humanSize(knownSize));
+        } else if (fi.exists() && fi.isFile()) {
             size_->setText(humanSize(fi.size()));
-        else
+        } else {
             size_->setText("Unknown size");
+        }
         size_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
         root->addWidget(top);
@@ -150,6 +155,11 @@ public:
     }
 
     void setProgress(const int pct) const { bar_->setValue(std::clamp(pct, 0, 100)); }
+    void setSize(const qint64 bytes) const {
+        if (size_) {
+            size_->setText(humanSize(bytes));
+        }
+    }
     [[nodiscard]] QToolButton* removeButton() const { return removeBtn_; }
 
 protected:
@@ -543,11 +553,14 @@ void ServerWidget::addReceivedFile(const QString& fileIdOrName) {
         }
     }
 
-    auto* row = new FileCard(fileIdOrName, /*showRemove*/ true, incomingList_);
+    // Use known size if available
+    const qint64 knownSize = incomingFileSizes_.value(fileIdOrName, -1);
+    auto* row = new FileCard(fileIdOrName, /*showRemove*/ true, incomingList_, knownSize);
     incomingRows_.insert(fileIdOrName, row);
 
     connect(row->removeButton(), &QToolButton::clicked, this, [this, fileIdOrName, row]() {
         incomingRows_.remove(fileIdOrName);
+        incomingFileSizes_.remove(fileIdOrName);
         row->deleteLater();
     });
 
@@ -555,9 +568,26 @@ void ServerWidget::addReceivedFile(const QString& fileIdOrName) {
     incomingListLayout_->addStretch(1);
 }
 
+void ServerWidget::setReceivedFile(const QString& filename, const quint64 fileSize) {
+    // Store the file size
+    incomingFileSizes_.insert(filename, fileSize);
+
+    // Add the file to UI if not already present, or update the size if it exists
+    if (!incomingRows_.contains(filename)) {
+        addReceivedFile(filename);
+    } else {
+        // Update size of existing card (in case it was created without size info)
+        if (auto* row = incomingRows_.value(filename, nullptr)) {
+            row->setSize(fileSize);
+        }
+    }
+}
+
 void ServerWidget::setReceivedProgress(const QString& fileIdOrName, const int percent) {
-    if (!incomingRows_.contains(fileIdOrName)) addReceivedFile(fileIdOrName);
-    if (const auto* row = incomingRows_.value(fileIdOrName, nullptr)) row->setProgress(percent);
+    // Only update progress if the file card already exists (created by setReceivedFile)
+    if (const auto* row = incomingRows_.value(fileIdOrName, nullptr)) {
+        row->setProgress(percent);
+    }
 }
     void ServerWidget::dragEnterEvent(QDragEnterEvent* event) {
     if (event->mimeData() && event->mimeData()->hasUrls()) {

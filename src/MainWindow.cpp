@@ -130,6 +130,27 @@ bool MainWindow::startServer(const bool withAuth, const QString& password) {
             });
             Logger::getInstance().debug("Outgoing progress callback set");
 
+            Logger::getInstance().debug("Setting incoming progress callback...");
+            server_->setIncomingProgressCallback([w = serverWidget_](const std::string& filename, int pct) {
+                const QString qFilename = QString::fromStdString(filename);
+
+                QMetaObject::invokeMethod(w, [w, qFilename, pct]() {
+                    w->setReceivedProgress(qFilename, pct);
+                }, Qt::QueuedConnection);
+            });
+            Logger::getInstance().debug("Incoming progress callback set");
+
+            Logger::getInstance().debug("Setting incoming file callback...");
+            server_->setIncomingFileCallback([w = serverWidget_](const std::string& filename, uint64_t fileSize) {
+                const QString qFilename = QString::fromStdString(filename);
+
+                QMetaObject::invokeMethod(w, [w, qFilename, fileSize]() {
+                    w->setReceivedFile(qFilename, fileSize);
+                }, Qt::QueuedConnection);
+            });
+            Logger::getInstance().debug("Incoming file callback set");
+            Logger::getInstance().debug("Outgoing progress callback set");
+
         }
         Logger::getInstance().debug("startServer returning true");
         return true;

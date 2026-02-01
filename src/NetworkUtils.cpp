@@ -1,6 +1,7 @@
 #include "NetworkUtils.h"
 #include <cstring>
 #include <cstdint>
+#include <algorithm>
 #include <iostream>
 
 #ifdef _WIN32
@@ -135,6 +136,9 @@ std::string getLocalIPAddress() {
     }
 
     std::string best = "127.0.0.1";
+    std::string wifiIP = "";
+    std::string ethernetIP = "";
+
     auto* info = reinterpret_cast<IP_ADAPTER_INFO*>(std::malloc(bufLen));
     if (!info) return "127.0.0.1";
 
@@ -147,14 +151,34 @@ std::string getLocalIPAddress() {
             if (ip == "0.0.0.0") continue;
             if (ip.rfind("127.", 0) == 0) continue;
 
-            if (best == "127.0.0.1" || isPrivateIPv4(ip)) {
-                best = ip;
-                if (isPrivateIPv4(ip)) break;
+            // Check if this is a valid private IP
+            if (!isPrivateIPv4(ip)) continue;
+
+            // Get adapter description to detect WiFi vs Ethernet
+            std::string desc(a->Description);
+            std::transform(desc.begin(), desc.end(), desc.begin(), ::tolower);
+
+            // Prioritize WiFi adapters
+            if (desc.find("wi-fi") != std::string::npos ||
+                desc.find("wifi") != std::string::npos ||
+                desc.find("wireless") != std::string::npos ||
+                desc.find("802.11") != std::string::npos) {
+                wifiIP = ip;
+            } else if (desc.find("ethernet") != std::string::npos ||
+                       desc.find("eth") != std::string::npos) {
+                if (ethernetIP.empty()) ethernetIP = ip;
+            } else {
+                // Generic adapter - keep as fallback
+                if (best == "127.0.0.1") best = ip;
             }
         }
     }
 
     std::free(info);
+
+    // Priority: WiFi > Ethernet > Any other valid IP > localhost
+    if (!wifiIP.empty()) return wifiIP;
+    if (!ethernetIP.empty()) return ethernetIP;
     return best;
 #else
     char hostName[256];

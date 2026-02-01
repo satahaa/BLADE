@@ -34,11 +34,12 @@ namespace blade {
 
         // Incoming (received files)
         void addReceivedFile(const QString& fileIdOrName);
+        void setReceivedFile(const QString& filename, quint64 fileSize);
         void setReceivedProgress(const QString& fileIdOrName, int percent);
 
-        signals:
+    signals:
             // User wants to stop server & go back
-            void backRequested();
+        void backRequested();
 
         // User clicked "Send" for selected files
         void sendFilesRequested(const QStringList& files);
@@ -75,6 +76,7 @@ namespace blade {
         // Progress rows
         QMap<QString, FileCard*> outgoingRows_;
         QMap<QString, FileCard*> incomingRows_;
+        QMap<QString, quint64> incomingFileSizes_; // Track file sizes for incoming files
 
     protected:
         void dragEnterEvent(QDragEnterEvent* event) override;

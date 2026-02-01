@@ -836,6 +836,23 @@ class BladeApp {
 
         for (let i = 0; i < this.selectedFiles.length; i++) {
             const file = this.selectedFiles[i];
+
+            // Announce the file to server first (so it appears in UI immediately)
+            try {
+                await fetch('/api/upload/announce', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        size: file.size
+                    })
+                });
+            } catch (e) {
+                console.error('Failed to announce file:', e);
+            }
+
             const form = new FormData();
             form.append('files[]', file, file.name);
 

@@ -61,10 +61,11 @@ public:
      * @brief Handle file upload
      * @param filename Name of the uploaded file
      * @param data File data as byte vector
+     * @param fileSize Size of the file in bytes (for progress reporting)
      * @return true if upload was successful
      */
-    bool handleUpload(const std::string& filename, const std::vector<uint8_t>& data) const;
-    
+    bool handleUpload(const std::string& filename, const std::vector<uint8_t>& data, size_t fileSize = 0) const;
+
     /**
      * @brief Stop the server
      */
@@ -144,6 +145,39 @@ public:
      */
     void reportOutgoingProgress(const std::string& path, int pct) const;
 
+    /**
+     * @brief Set callback for incoming file transfer progress (client->server uploads)
+     * @param cb Callback function taking file name and progress percentage
+     */
+    void setIncomingProgressCallback(std::function<void(const std::string&, int)> cb);
+
+    /**
+     * @brief Report incoming file transfer progress
+     * @param filename File name being received
+     * @param pct Progress percentage (0-100)
+     */
+    void reportIncomingProgress(const std::string& filename, int pct) const;
+
+    /**
+     * @brief Set callback for incoming file information (name and size)
+     * @param cb Callback function taking file name and size in bytes
+     */
+    void setIncomingFileCallback(std::function<void(const std::string&, uint64_t)> cb);
+
+    /**
+     * @brief Report incoming file information before transfer starts
+     * @param filename File name being received
+     * @param fileSize File size in bytes
+     */
+    void reportIncomingFile(const std::string& filename, uint64_t fileSize) const;
+
+    /**
+     * @brief Announce an incoming file upload (called when client starts sending)
+     * @param filename Name of the file being uploaded
+     * @param fileSize Size of the file in bytes
+     */
+    void announceIncomingFile(const std::string& filename, uint64_t fileSize) const;
+
 private:
     int port_;
     bool useAuth_;
@@ -167,6 +201,8 @@ private:
 #pragma pack(pop)
 
     std::function<void(const std::string&, int)> outgoingProgressCb_;
+    std::function<void(const std::string&, int)> incomingProgressCb_;
+    std::function<void(const std::string&, uint64_t)> incomingFileCb_;
     void reportProgress(const std::string& path, int pct) const;
     mutable std::mutex cbMutex_;
 

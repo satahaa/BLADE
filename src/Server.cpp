@@ -110,7 +110,7 @@ std::string Server::getDownloadDirectory() const {
     return downloadDir_;
 }
 
-bool Server::handleUpload(const std::string& filename, const std::vector<uint8_t>& data) const {
+bool Server::handleUpload(const std::string& filename, const std::vector<uint8_t>& data, const size_t fileSize) const {
     try {
         std::string downloadDir;
         {
@@ -134,13 +134,45 @@ bool Server::handleUpload(const std::string& filename, const std::vector<uint8_t
             candidate = dir / (base.string() + '(' + std::to_string(idx++) + ')' + ext.string());
         }
 
+        // Report file info BEFORE starting transfer (so UI can show it immediately)
+        const uint64_t actualSize = fileSize > 0 ? fileSize : data.size();
+        reportIncomingFile(safeName, actualSize);
+
+        // Report start of upload
+        reportIncomingProgress(safeName, 0);
 
         std::ofstream out(candidate, std::ios::binary);
         if (!out) {
             Logger::getInstance().error("Failed to open file for writing: " + candidate.string());
             return false;
         }
-        out.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+
+        // Write in chunks and report progress
+        constexpr size_t CHUNK_SIZE = 64 * 1024; // 64KB chunks
+        size_t totalSize = data.size();
+        size_t written = 0;
+        int lastReportedPct = 0;
+
+        while (written < totalSize) {
+            size_t toWrite = std::min(CHUNK_SIZE, totalSize - written);
+            out.write(reinterpret_cast<const char*>(data.data() + written), static_cast<std::streamsize>(toWrite));
+
+            if (!out) {
+                Logger::getInstance().error("Failed to write data to file: " + candidate.string());
+                out.close();
+                return false;
+            }
+
+            written += toWrite;
+
+            // Report progress
+            int pct = totalSize == 0 ? 100 : static_cast<int>((written * 100) / totalSize);
+            if (pct != lastReportedPct) {
+                reportIncomingProgress(safeName, pct);
+                lastReportedPct = pct;
+            }
+        }
+
         out.close();
 
         Logger::getInstance().info("Saved uploaded file: " + candidate.string());
@@ -187,6 +219,43 @@ void Server::reportProgress(const std::string& path, const int pct) const {
 
 void Server::reportOutgoingProgress(const std::string& path, const int pct) const {
     reportProgress(path, pct);
+}
+
+void Server::setIncomingProgressCallback(std::function<void(const std::string&, int)> cb) {
+    std::lock_guard lock(cbMutex_);
+    incomingProgressCb_ = std::move(cb);
+}
+
+void Server::reportIncomingProgress(const std::string& filename, const int pct) const {
+    std::function<void(const std::string&, int)> cb;
+    {
+        std::lock_guard lock(cbMutex_);
+        cb = incomingProgressCb_;
+    }
+    if (cb) cb(filename, pct);
+}
+
+void Server::setIncomingFileCallback(std::function<void(const std::string&, uint64_t)> cb) {
+    std::lock_guard lock(cbMutex_);
+    incomingFileCb_ = std::move(cb);
+}
+
+void Server::reportIncomingFile(const std::string& filename, const uint64_t fileSize) const {
+    std::function<void(const std::string&, uint64_t)> cb;
+    {
+        std::lock_guard lock(cbMutex_);
+        cb = incomingFileCb_;
+    }
+    if (cb) cb(filename, fileSize);
+}
+
+void Server::announceIncomingFile(const std::string& filename, const uint64_t fileSize) const {
+    // Sanitize filename to match what handleUpload uses
+    const std::string safeName = sanitizeFilename(filename);
+    // Immediately notify UI about incoming file (before data transfer starts)
+    Logger::getInstance().debug("Announcing incoming file: " + safeName + " (" + std::to_string(fileSize) + " bytes)");
+    reportIncomingFile(safeName, fileSize);
+    reportIncomingProgress(safeName, 0);  // Set initial progress to 0%
 }
 
 std::vector<std::string> Server::getPendingFiles() const {
