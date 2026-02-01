@@ -67,6 +67,7 @@ set(HEADERS
     include/QRCodeGen.h
     include/Logger.h
     include/TitleBar.h
+    include/Toast.h
 )
 
 set(RESOURCES

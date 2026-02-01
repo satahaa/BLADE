@@ -4,16 +4,27 @@
 #include "Logger.h"
 #include <thread>
 #include <vector>
+#include <algorithm>
 #include <windows.h>
 
 namespace blade {
+
+static uint64_t htonll(uint64_t x) {
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+    return x;
+#else
+    return (static_cast<uint64_t>(htonl(static_cast<uint32_t>(x & 0xFFFFFFFFULL))) << 32) |
+             htonl(static_cast<uint32_t>(x >> 32));
+#endif
+}
+
 
 Server::Server(const int port, const bool useAuth, const std::string& password)
     : port_(port), useAuth_(useAuth), running_(false) {
     authManager_ = std::make_unique<AuthenticationManager>();
 
     Logger::getInstance().debug("Server constructor - useAuth: " + std::string(useAuth ? "true" : "false") +
-                                + "', password: '" + password + "'");
+                                ", password: '" + password + "'");
 
     // Register user credentials if authentication is enabled
     if (useAuth_ && !password.empty()) {
@@ -66,7 +77,7 @@ bool Server::start() {
 
 static std::string sanitizeFilename(const std::string& name) {
     std::string out;
-    for (char c : name) {
+    for (const char c : name) {
         if (c == '/' || c == '\\' || c == ':' || c == '\0' || c == '\n' || c == '\r') {
             out.push_back('_');
         } else {
@@ -84,25 +95,34 @@ void Server::setDownloadDirectory(const std::string& path) {
             p = std::filesystem::absolute(p);
         }
         std::filesystem::create_directories(p);
-        downloadDir_ = p.string();
-        Logger::getInstance().info("Download directory set to: " + downloadDir_);
+        {
+            std::lock_guard lock(downloadDirMutex_);
+            downloadDir_ = p.string();
+        }
+        Logger::getInstance().info("Download directory set to: " + p.string());
     } catch (const std::exception& e) {
         Logger::getInstance().error(std::string("Failed to set download directory: ") + e.what());
     }
 }
 
 std::string Server::getDownloadDirectory() const {
+    std::lock_guard lock(downloadDirMutex_);
     return downloadDir_;
 }
 
 bool Server::handleUpload(const std::string& filename, const std::vector<uint8_t>& data) const {
     try {
-        if (downloadDir_.empty()) {
+        std::string downloadDir;
+        {
+            std::lock_guard lock(downloadDirMutex_);
+            downloadDir = downloadDir_;
+        }
+        if (downloadDir.empty()) {
             Logger::getInstance().warning("No download directory set; rejecting upload for " + filename);
             return false;
         }
         const std::string safeName = sanitizeFilename(filename);
-        const std::filesystem::path dest = std::filesystem::path(downloadDir_) / safeName;
+        const std::filesystem::path dest = std::filesystem::path(downloadDir) / safeName;
 
         // If file exists, append a numeric suffix
         std::filesystem::path base = dest.stem();
@@ -129,6 +149,63 @@ bool Server::handleUpload(const std::string& filename, const std::vector<uint8_t
         Logger::getInstance().error(std::string("Exception saving upload: ") + e.what());
         return false;
     }
+}
+
+void Server::sendFilesToClient(const std::vector<std::string>& filePaths) {
+    // Check if there are any connected HTTP clients
+    if (!hasConnectedClients()) {
+        Logger::getInstance().warning("sendFilesToClient(): no connected HTTP clients");
+        return;
+    }
+
+    // Queue files for HTTP-based download
+    {
+        std::lock_guard lock(pendingFilesMutex_);
+        for (const auto& path : filePaths) {
+            // Only add if not already in queue
+            if (std::find(pendingFiles_.begin(), pendingFiles_.end(), path) == pendingFiles_.end()) {
+                pendingFiles_.push_back(path);
+                Logger::getInstance().info("Queued file for download: " + path);
+            }
+        }
+    }
+
+    // Report initial progress for UI
+    for (const auto& path : filePaths) {
+        reportProgress(path, 0);
+    }
+}
+
+void Server::reportProgress(const std::string& path, const int pct) const {
+    std::function<void(const std::string&, int)> cb;
+    {
+        std::lock_guard lock(cbMutex_);
+        cb = outgoingProgressCb_;
+    }
+    if (cb) cb(path, pct);
+}
+
+void Server::reportOutgoingProgress(const std::string& path, const int pct) const {
+    reportProgress(path, pct);
+}
+
+std::vector<std::string> Server::getPendingFiles() const {
+    std::lock_guard lock(pendingFilesMutex_);
+    return pendingFiles_;
+}
+
+void Server::removePendingFile(const std::string& filePath) {
+    std::lock_guard lock(pendingFilesMutex_);
+    pendingFiles_.erase(
+        std::remove(pendingFiles_.begin(), pendingFiles_.end(), filePath),
+        pendingFiles_.end()
+    );
+    Logger::getInstance().debug("Removed pending file: " + filePath);
+}
+
+bool Server::hasConnectedClients() const {
+    std::lock_guard lock(ipMutex_);
+    return !httpClientActivity_.empty();
 }
 
 void Server::stop() {
@@ -161,6 +238,12 @@ int Server::getPort() const {
     return port_;
 }
 
+void Server::setOutgoingProgressCallback(std::function<void(const std::string&, int)> cb) {
+    std::lock_guard lock(cbMutex_);
+    outgoingProgressCb_ = std::move(cb);
+}
+
+
 void Server::setAuthRequired(const bool useAuth) {
     useAuth_ = useAuth;
 }
@@ -188,14 +271,14 @@ void Server::trackHTTPConnection(const std::string& clientIP) {
 
 void Server::cleanupInactiveHTTPClients() {
     while (running_) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         std::lock_guard lock(ipMutex_);
         auto now = std::chrono::steady_clock::now();
 
-        // Remove clients that haven't had activity in the last 10 seconds
+        // Remove clients that haven't had activity in the last 30 seconds
         for (auto it = httpClientActivity_.begin(); it != httpClientActivity_.end();) {
-            if (const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count(); elapsed > 10) {
+            if (const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count(); elapsed > 30) {
                 Logger::getInstance().info("[HTTP CLIENT] " + it->first + " disconnected (timeout)");
                 connectedIPs_.erase(it->first);
                 it = httpClientActivity_.erase(it);
@@ -236,12 +319,7 @@ void Server::acceptConnections() {
         if (!running_) break;
         if (clientSocket != INVALID_SOCKET) {
             // Set client socket to non-blocking
-#ifdef _WIN32
-            u_long mode = 1;
-            ioctlsocket(clientSocket, FIONBIO, &mode);
-#else
-            fcntl(clientSocket, F_SETFL, O_NONBLOCK);
-#endif
+
             const int clientId = connectionHandler_->addClient(clientSocket, clientAddr);
 
             // Filter out local connections completely:
@@ -277,30 +355,6 @@ void Server::acceptConnections() {
                     welcomeMsg += "Authentication is disabled.\n";
                 }
                 (void)connectionHandler_->sendToClient(clientId, welcomeMsg);
-
-                // Start a thread to monitor this client for disconnection
-                std::thread([this, clientSocket, clientAddr]() {
-                    while (running_) {
-                        fd_set readfds;
-                        FD_ZERO(&readfds);
-                        FD_SET(clientSocket, &readfds);
-                        timeval tv{};
-                        tv.tv_sec = 0;
-                        tv.tv_usec = 500000; // 0.5s timeout
-                        int selResult = select(clientSocket + 1, &readfds, nullptr, nullptr, &tv);
-                        if (selResult > 0 && FD_ISSET(clientSocket, &readfds)) {
-                            char buffer[1];
-                            int bytes = NetworkUtils::receiveData(clientSocket, buffer, sizeof(buffer));
-                            if (bytes <= 0) {
-                                std::lock_guard lock(ipMutex_);
-                                connectedIPs_.erase(clientAddr);
-                                Logger::getInstance().info("[DISCONNECTED] " + clientAddr);
-                                break;
-                            }
-                        }
-                        // If selResult == 0, timeout, just loop again and check running_
-                    }
-                }).detach();
             }
             // If it's a local connection, just handle it silently (no logging, no welcome message)
         }

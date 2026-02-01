@@ -64,12 +64,14 @@ private:
 
     void run();
 
-    void handleRequest(SocketType clientSocket) const;
+    void handleRequest(SocketType clientSocket, const std::string& clientIP) const;
+    void handleFileDownload(SocketType clientSocket, const std::string& filePath) const;
     static void setSocketTimeout(SocketType socket, int seconds = 5) ;
     static std::string getContentType(const std::string& path);
     static std::string loadFile(const std::string& path);
     [[nodiscard]] std::string getAuthConfig() const;
     [[nodiscard]] std::string getConnectedDevicesJson() const;
+    [[nodiscard]] std::string getPendingFilesJson() const;
 };
 
 } // namespace blade

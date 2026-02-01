@@ -613,3 +613,13 @@ QLabel#fileSize {
     color: #9ca3af;          /* adjust */
     padding-left: 28px;      /* aligns with text after icon */
 }
+#toast {
+    background: rgba(30, 30, 30, 220);
+    border: 1px solid rgba(255,255,255,30);
+    border-radius: 10px;
+}
+
+#toastText {
+    color: white;
+    font-size: 13px;
+}

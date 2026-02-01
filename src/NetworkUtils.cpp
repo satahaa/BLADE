@@ -199,20 +199,64 @@ std::string getLocalIPAddress() {
 #endif
 }
 
-int sendData(SocketType socket, const std::string& data) {
+int sendData(const SocketType socket, const std::string& data) {
+    const char* ptr = data.c_str();
+    size_t remaining = data.length();
+    size_t totalSent = 0;
+
+    while (remaining > 0) {
 #ifdef _WIN32
-    return send(socket, data.c_str(), static_cast<int>(data.length()), 0);
+        int sent = send(socket, ptr + totalSent, static_cast<int>(remaining), 0);
 #else
-    return send(socket, data.c_str(), data.length(), 0);
+        ssize_t sent = send(socket, ptr + totalSent, remaining, 0);
 #endif
+        if (sent <= 0) {
+            return static_cast<int>(totalSent > 0 ? totalSent : sent);
+        }
+        totalSent += static_cast<size_t>(sent);
+        remaining -= static_cast<size_t>(sent);
+    }
+
+    return static_cast<int>(totalSent);
 }
 
-int receiveData(SocketType socket, char* buffer, size_t maxSize) {
+int receiveData(const SocketType socket, char* buffer, const size_t maxSize) {
 #ifdef _WIN32
     return recv(socket, buffer, static_cast<int>(maxSize), 0);
 #else
     return recv(socket, buffer, maxSize, 0);
 #endif
 }
+
+bool sendAll(const SocketType socket, const void* data, const size_t len) {
+    const auto p = static_cast<const char*>(data);
+    size_t sent = 0;
+    while (sent < len) {
+#ifdef _WIN32
+        const int n = ::send(socket, p + sent, static_cast<int>(len - sent), 0);
+#else
+        ssize_t n = ::send(socket, p + sent, len - sent, 0);
+#endif
+        if (n <= 0) return false;
+        sent += static_cast<size_t>(n);
+    }
+    return true;
+}
+
+bool recvAll(const SocketType socket, void* data, const size_t len) {
+    const auto p = static_cast<char*>(data);
+    size_t recvd = 0;
+    while (recvd < len) {
+#ifdef _WIN32
+        const int n = ::recv(socket, p + recvd, static_cast<int>(len - recvd), 0);
+#else
+        ssize_t n = ::recv(socket, p + recvd, len - recvd, 0);
+#endif
+        if (n <= 0) return false;
+        recvd += static_cast<size_t>(n);
+    }
+    return true;
+}
+
 
 } // namespace blade::NetworkUtils

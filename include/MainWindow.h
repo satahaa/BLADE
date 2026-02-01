@@ -24,6 +24,7 @@ protected:
 private slots:
     void onStartWithAuth(const QString& password);
     void onStartNoAuth();
+    void onSendFilesRequested(const QStringList& files) const;
 
     static void forceClose();
 

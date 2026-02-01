@@ -1,11 +1,14 @@
 #include "ServerWidget.h"
+#include "Logger.h"
 #include <QClipboard>
 #include <QToolButton>
 #include <QProgressBar>
 #include <QScrollArea>
+#include <QTimer>
 #include <QRCodeGen.h>
 #include <QDragMoveEvent>
 #include <QMimeData>
+#include <QDebug>
 
 namespace blade {
 
@@ -101,7 +104,13 @@ public:
 
         name_ = new QLabel(fi.fileName(), top);
         name_->setObjectName("fileName");
-        name_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        name_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred); // Use Ignored to allow shrinking
+        name_->setWordWrap(false);
+        name_->setTextFormat(Qt::PlainText);
+
+        // Store full filename for eliding
+        fullName_ = fi.fileName();
+        name_->setToolTip(fullName_); // Show full name on hover
 
 
         removeBtn_ = new QToolButton(top);
@@ -135,16 +144,37 @@ public:
         root->addWidget(top);
         root->addWidget(size_);
         root->addWidget(bar_);
+
+        // Initial text eliding
+        QTimer::singleShot(0, this, [this]() { updateElidedText(); });
     }
 
     void setProgress(const int pct) const { bar_->setValue(std::clamp(pct, 0, 100)); }
     [[nodiscard]] QToolButton* removeButton() const { return removeBtn_; }
 
+protected:
+    void resizeEvent(QResizeEvent* event) override {
+        QWidget::resizeEvent(event);
+        updateElidedText();
+    }
+
 private:
+    void updateElidedText() const {
+        if (!name_ || fullName_.isEmpty()) return;
+
+        // Calculate available width: widget width minus margins, icon, button, and spacing
+        const int availableWidth = width() - 12 - 12 - 18 - 28 - 10 - 10 - 20; // margins + icon + button + spacing + buffer
+
+        QFontMetrics metrics(name_->font());
+        QString elidedText = metrics.elidedText(fullName_, Qt::ElideMiddle, availableWidth);
+        name_->setText(elidedText);
+    }
+
     QLabel* name_ = nullptr;
     QLabel* size_ = nullptr;
     QToolButton* removeBtn_ = nullptr;
     QProgressBar* bar_ = nullptr;
+    QString fullName_;
 };
 
 ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
@@ -188,12 +218,11 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     auto* statusIcon = new QLabel(statusWrap);
     statusIcon->setObjectName("statusIcon");
     statusIcon->setFixedSize(32, 32);
-    statusIcon->setPixmap(QIcon(":/icons/connected.svg").pixmap(32, 32));
     statusIcon->setScaledContents(true);
     statusIcon->setStyleSheet("padding-top: 6px;");
 
     // Text
-    onlineLabel_ = new QLabel("Online", statusWrap);
+    onlineLabel_ = new QLabel("", statusWrap);
     onlineLabel_->setObjectName("statusText");
     onlineLabel_->setStyleSheet(
         "font-size: 25px;"
@@ -227,6 +256,7 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     // ---------- Left card: QR + URL ----------
     auto* leftCard = makeCard(content, "leftCard");
     leftCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    leftCard->setMinimumHeight(680); // Increased significantly for better aesthetics
     auto* left = new QVBoxLayout(leftCard);
     left->setContentsMargins(18, 18, 18, 18);
     left->setSpacing(14);
@@ -235,7 +265,7 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     // QR code box
     auto* qrBox = new QFrame(leftCard);
     qrBox->setObjectName("qrBox");
-    qrBox->setMinimumHeight(280);
+    qrBox->setMinimumHeight(380); // Increased for larger QR
     auto* qrBoxL = new QVBoxLayout(qrBox);
     qrBoxL->setContentsMargins(0, 0, 0, 0);
     qrBoxL->setAlignment(Qt::AlignCenter);
@@ -244,7 +274,7 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     qrLabel_->setObjectName("qrCode");
     qrLabel_->setAlignment(Qt::AlignCenter);
     qrLabel_->setText("QR");
-    qrLabel_->setMinimumSize(220, 220);
+    qrLabel_->setMinimumSize(300, 300); // Larger QR code
     qrBoxL->addWidget(qrLabel_);
 
     left->addStretch(1);
@@ -301,6 +331,7 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     // Send Files card
     auto* sendCard = makeCard(rightCol, "sendCard");
     sendCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    sendCard->setMinimumHeight(330); // Increased significantly
     auto* send = new QVBoxLayout(sendCard);
     send->setContentsMargins(18, 18, 18, 18);
     send->setSpacing(4);
@@ -373,8 +404,9 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
 
     // Received Files card
     auto* recvCard = makeCard(rightCol, "recvCard");
-    auto* recv = new QVBoxLayout(recvCard);
     recvCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    recvCard->setMinimumHeight(330); // Increased significantly
+    auto* recv = new QVBoxLayout(recvCard);
     recv->setContentsMargins(18, 18, 18, 18);
     recv->setSpacing(12);
 
@@ -421,8 +453,13 @@ ServerWidget::ServerWidget(QWidget* parent) : QWidget(parent) {
     });
 
     connect(sendButton_, &QPushButton::clicked, this, [this]() {
-        if (!selectedFiles_.isEmpty())
+        Logger::getInstance().info("Send button clicked, selectedFiles count: " + std::to_string(selectedFiles_.size()));
+        if (!selectedFiles_.isEmpty()) {
+            Logger::getInstance().info("Emitting sendFilesRequested with " + std::to_string(selectedFiles_.size()) + " files");
             emit sendFilesRequested(selectedFiles_);
+        } else {
+            Logger::getInstance().warning("Send button clicked but selectedFiles_ is empty!");
+        }
     });
 }
 
@@ -439,14 +476,17 @@ void ServerWidget::setServerUrl(const QString& url) {
 }
 
 void ServerWidget::setSelectedFiles(const QStringList& files) {
+    Logger::getInstance().debug("setSelectedFiles called with " + std::to_string(files.size()) + " files");
     for (const QString& f : files) {
         if (!selectedFiles_.contains(f))
             selectedFiles_.append(f);
     }
+    Logger::getInstance().debug("Total selected files: " + std::to_string(selectedFiles_.size()));
     outgoingList_->setVisible(!selectedFiles_.isEmpty());
     dropHintLabel_->setVisible(selectedFiles_.isEmpty());
     outgoingScroll_->setVisible(!selectedFiles_.isEmpty());
     sendButton_->setEnabled(!selectedFiles_.isEmpty());
+    Logger::getInstance().debug("sendButton_ enabled: " + std::string(sendButton_->isEnabled() ? "true" : "false"));
     dropZone_->setVisible(selectedFiles_.isEmpty());
 
     // remove bottom stretch if present (so we can append above it)

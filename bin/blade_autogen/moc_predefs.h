@@ -43,6 +43,7 @@
 #define __FINITE_MATH_ONLY__ 0
 #define __cpp_variable_templates 201304L
 #define __FLT32X_MAX_EXP__ 1024
+#define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 1
 #define __FLT32_HAS_DENORM__ 1
 #define __UINT_FAST8_MAX__ 0xff
 #define __cpp_rvalue_reference 200610L
@@ -64,6 +65,7 @@
 #define __BFLT16_MAX_10_EXP__ 38
 #define __BFLT16_MAX_EXP__ 128
 #define __LDBL_IS_IEC_60559__ 1
+#define QT_NO_DEBUG 1
 #define __FLT64X_HAS_QUIET_NAN__ 1
 #define __UINT_LEAST8_MAX__ 0xff
 #define __GCC_ATOMIC_BOOL_LOCK_FREE 2
@@ -88,7 +90,6 @@
 #define QT_SVG_LIB 1
 #define __INT64_C(c) c ## LL
 #define __cpp_impl_destroying_delete 201806L
-#define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 1
 #define __GCC_ATOMIC_POINTER_LOCK_FREE 2
 #define __ATOMIC_SEQ_CST 5
 #define _UNICODE 1
@@ -185,6 +186,7 @@
 #define __PTRDIFF_MAX__ 0x7fffffffffffffffLL
 #define __amd64 1
 #define __STDCPP_FLOAT64_T__ 1
+#define __tune_core2__ 1
 #define __ATOMIC_HLE_ACQUIRE 65536
 #define __GNUG__ 13
 #define __LONG_LONG_MAX__ 0x7fffffffffffffffLL

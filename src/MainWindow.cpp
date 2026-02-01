@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "NetworkUtils.h"
 #include "Logger.h"
+#include "Toast.h"
 #include <QMessageBox>
 #include <QApplication>
 #include <QTimer>
@@ -108,10 +109,29 @@ bool MainWindow::startServer(const bool withAuth, const QString& password) {
         Logger::getInstance().info("Server started successfully on IP: " + ip);
         if (server_) {
             server_->setDownloadDirectory(loginWidget_->getDownloadPath().toStdString());
+            Logger::getInstance().debug("Connecting downloadPathChanged signal...");
             connect(loginWidget_, &LoginWidget::downloadPathChanged, this, [this](const QString& path) {
                 if (server_) server_->setDownloadDirectory(path.toStdString());
             });
+            Logger::getInstance().debug("downloadPathChanged signal connected");
+
+            Logger::getInstance().debug("Connecting sendFilesRequested signal...");
+            connect(serverWidget_, &ServerWidget::sendFilesRequested,
+                    this, &MainWindow::onSendFilesRequested);
+            Logger::getInstance().debug("sendFilesRequested signal connected");
+
+            Logger::getInstance().debug("Setting outgoing progress callback...");
+            server_->setOutgoingProgressCallback([w = serverWidget_](const std::string& path, int pct) {
+                const QString qPath = QString::fromStdString(path);
+
+                QMetaObject::invokeMethod(w, [w, qPath, pct]() {
+                    w->setOutgoingProgress(qPath, pct);
+                }, Qt::QueuedConnection);
+            });
+            Logger::getInstance().debug("Outgoing progress callback set");
+
         }
+        Logger::getInstance().debug("startServer returning true");
         return true;
 
     } catch (const std::exception& e) {
@@ -136,6 +156,35 @@ void MainWindow::forceClose() {
     Logger::getInstance().info("[CLOSE] forceClose() called, exiting application");
     // This will force the application to exit immediately after server shutdown
     QApplication::exit(0);
+}
+
+void MainWindow::onSendFilesRequested(const QStringList& files) const {
+    Logger::getInstance().info("onSendFilesRequested slot called with " + std::to_string(files.size()) + " files");
+
+    if (!server_) {
+        Logger::getInstance().error("onSendFilesRequested: server_ is null");
+        return;
+    }
+
+    // Check if any client is connected
+    const bool hasClients = server_->hasConnectedClients();
+    Logger::getInstance().debug("hasConnectedClients() returned: " + std::string(hasClients ? "true" : "false"));
+
+    if (!hasClients) {
+        Toast::showText(serverWidget_, "No device connected", 2500);
+        Logger::getInstance().warning("Send files requested but no client connected");
+        return;
+    }
+
+    std::vector<std::string> paths;
+    paths.reserve(files.size());
+    for (const auto& f : files) {
+        paths.push_back(f.toStdString());
+        Logger::getInstance().debug("Queueing file: " + f.toStdString());
+    }
+
+    server_->sendFilesToClient(paths);
+    Logger::getInstance().info("Files sent to sendFilesToClient()");
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {

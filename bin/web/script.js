@@ -9,6 +9,10 @@ class BladeApp {
         this.selectedFiles = []; // Store selected files persistently
         this.heartbeatInterval = null;
         this.reconnectInterval = null;
+        this.pendingFilesInterval = null;
+        this.downloadedFiles = new Set(); // Track already downloaded files using name+size as key
+        this.receivedFileElements = new Map(); // Track DOM elements by name+size to prevent duplicates
+        this.isDownloading = false; // Flag to prevent concurrent download checks
         this.isReconnecting = false;
         this.heartbeatFailCount = 0;
         this.maxHeartbeatFails = 3; // Increase to 3 to avoid false disconnections
@@ -123,6 +127,12 @@ class BladeApp {
         if (this.heartbeatInterval) {
             clearInterval(this.heartbeatInterval);
             this.heartbeatInterval = null;
+        }
+
+        // Stop pending files polling during disconnection
+        if (this.pendingFilesInterval) {
+            clearInterval(this.pendingFilesInterval);
+            this.pendingFilesInterval = null;
         }
 
         // Start reconnection attempts
@@ -362,6 +372,290 @@ class BladeApp {
         if (!this.sessionTimer) {
             this.startSessionTimer();
         }
+
+        // Start polling for pending files from server
+        this.startPendingFilesPolling();
+    }
+
+    startPendingFilesPolling() {
+        // Clear any existing interval
+        if (this.pendingFilesInterval) {
+            clearInterval(this.pendingFilesInterval);
+        }
+
+        // Poll every 2 seconds
+        this.pendingFilesInterval = setInterval(() => {
+            this.checkPendingFiles();
+        }, 2000);
+
+        // Also check immediately
+        this.checkPendingFiles();
+    }
+
+    async checkPendingFiles() {
+        // Skip if already downloading
+        if (this.isDownloading) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/pending-files?t=' + Date.now(), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const files = data.files || [];
+
+                // Filter out already downloaded files using name+size as unique key
+                const newFiles = files.filter(file => {
+                    const fileKey = `${file.name}-${file.size}`;
+                    return !this.downloadedFiles.has(fileKey);
+                });
+
+                // If there are new files, handle them
+                if (newFiles.length > 0) {
+                    // Detect iOS Safari
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+                    if (isIOS && newFiles.length > 1) {
+                        // On iOS with multiple files, show download buttons instead of auto-download
+                        this.showPendingFilesForManualDownload(newFiles);
+                    } else {
+                        // On other platforms or single file, auto-download
+                        this.isDownloading = true;
+                        await this.downloadFilesSequentially(newFiles);
+                        this.isDownloading = false;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to check pending files:', error);
+            this.isDownloading = false;
+        }
+    }
+
+    showPendingFilesForManualDownload(files) {
+        // Add each file to received files with a download button
+        for (const file of files) {
+            const fileKey = `${file.name}-${file.size}`;
+
+            // Skip if already shown (check both sets)
+            if (this.downloadedFiles.has(fileKey) || this.receivedFileElements.has(fileKey)) {
+                continue;
+            }
+
+            // Mark as shown (not downloaded yet)
+            this.downloadedFiles.add(fileKey);
+
+            // Add to UI with download button
+            this.addReceivedFileWithDownloadButton(file);
+        }
+
+        // Show notification
+        this.showNotification(`${files.length} files ready to download. Tap each to download.`, 'info');
+    }
+
+    addReceivedFileWithDownloadButton(file) {
+        const receivedFilesDiv = document.getElementById('receivedFiles');
+        const fileKey = `${file.name}-${file.size}`;
+
+        // Check if already in DOM (prevent duplicates)
+        if (this.receivedFileElements.has(fileKey)) {
+            return;
+        }
+
+        // Remove "No files received" message if present
+        const noFilesMsg = receivedFilesDiv.querySelector('.no-files');
+        if (noFilesMsg) {
+            noFilesMsg.remove();
+        }
+
+        // Use filename in URL to preserve original extension
+        const downloadUrl = `/api/download/${file.index}/${encodeURIComponent(file.name)}`;
+
+        // Add file item with download button
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+            <div class="file-info" style="flex: 1;">
+                <img src="${this.getFileIcon(file.name)}" alt="" style="width: 20px; height: 20px; margin-right: 8px; vertical-align: middle;">
+                <span class="file-name">${file.name}</span>
+                <span class="file-size">${this.formatFileSize(file.size)}</span>
+                <progress class="file-progress" value="0" max="100" style="width: 100%; height: 6px; display: none;"></progress>
+            </div>
+            <a href="${downloadUrl}" download="${file.name}" class="btn btn-primary" style="padding: 8px 16px; font-size: 14px; text-decoration: none;">
+                Download
+            </a>
+        `;
+        receivedFilesDiv.appendChild(fileItem);
+
+        // Track this element
+        this.receivedFileElements.set(fileKey, fileItem);
+    }
+
+    async downloadFilesSequentially(files) {
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const fileKey = `${file.name}-${file.size}`;
+
+            // Skip if already downloaded (double check)
+            if (this.downloadedFiles.has(fileKey)) {
+                continue;
+            }
+
+            // Mark as downloaded
+            this.downloadedFiles.add(fileKey);
+
+            // Download this file with progress tracking
+            await this.downloadFileFromServer(file);
+
+            // Wait for server to process the download completion
+            if (i < files.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Re-check pending files to get updated indices after file removal
+                // This prevents convoy effect where indices shift after downloads
+                try {
+                    const response = await fetch('/api/pending-files?t=' + Date.now(), {
+                        method: 'GET',
+                        headers: { 'Cache-Control': 'no-cache' }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const remainingFiles = data.files || [];
+
+                        // Update the files array with fresh data
+                        // Match remaining files by name and size
+                        const updatedFiles = [];
+                        for (let j = i + 1; j < files.length; j++) {
+                            const originalFile = files[j];
+                            const matchingFile = remainingFiles.find(rf =>
+                                rf.name === originalFile.name && rf.size === originalFile.size
+                            );
+                            if (matchingFile) {
+                                updatedFiles.push(matchingFile);
+                            }
+                        }
+
+                        // Replace remaining files with updated indices
+                        files.splice(i + 1, files.length - i - 1, ...updatedFiles);
+                    }
+                } catch (error) {
+                    console.error('Failed to refresh pending files:', error);
+                }
+            }
+        }
+    }
+
+    async downloadFileFromServer(file) {
+        console.log('Downloading file from server:', file.name, 'size:', file.size);
+        this.showNotification(`Downloading: ${file.name}`, 'info');
+
+        // Add to received files display with progress bar
+        this.addReceivedFile(file);
+
+        // Use the filename endpoint to preserve original extension
+        const downloadUrl = `/api/download/${file.index}/${encodeURIComponent(file.name)}`;
+
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', downloadUrl, true);
+            xhr.responseType = 'blob';
+
+            const fileKey = `${file.name}-${file.size}`;
+
+            // Track download progress
+            xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    this.updateReceivedFileProgress(fileKey, percentComplete);
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    // Create a download link for the blob
+                    const blob = xhr.response;
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = file.name;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+
+                    // Clean up
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+
+                    // Set progress to 100%
+                    this.updateReceivedFileProgress(fileKey, 100);
+                    resolve();
+                } else {
+                    this.showNotification(`Failed to download: ${file.name}`, 'error');
+                    reject(new Error(`Download failed with status ${xhr.status}`));
+                }
+            };
+
+            xhr.onerror = () => {
+                this.showNotification(`Download error: ${file.name}`, 'error');
+                reject(new Error('Network error'));
+            };
+
+            xhr.send();
+        });
+    }
+
+    updateReceivedFileProgress(fileKey, percent) {
+        const fileElement = this.receivedFileElements.get(fileKey);
+        if (fileElement) {
+            const progressBar = fileElement.querySelector('.file-progress');
+            if (progressBar) {
+                progressBar.style.display = 'block';
+                progressBar.value = percent;
+            }
+        }
+    }
+
+    addReceivedFile(file) {
+        const receivedFilesDiv = document.getElementById('receivedFiles');
+        const fileKey = `${file.name}-${file.size}`;
+
+        // Check if this file is already displayed (prevent duplicates in UI)
+        if (this.receivedFileElements.has(fileKey)) {
+            return; // Already in the UI
+        }
+
+        // Remove "No files received" message if present
+        const noFilesMsg = receivedFilesDiv.querySelector('.no-files');
+        if (noFilesMsg) {
+            noFilesMsg.remove();
+        }
+
+        // Add file item with unique ID and progress bar
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+            <div class="file-info">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <img src="${this.getFileIcon(file.name)}" alt="" style="width: 20px; height: 20px; flex-shrink: 0;">
+                    <span class="file-name">${file.name}</span>
+                </div>
+                <span class="file-size">${this.formatFileSize(file.size)}</span>
+                <progress class="file-progress" value="0" max="100" style="width: 100%; height: 6px; margin-top: 6px;"></progress>
+            </div>
+        `;
+        receivedFilesDiv.appendChild(fileItem);
+
+        // Track this element
+        this.receivedFileElements.set(fileKey, fileItem);
     }
 
     hideMainContent() {

@@ -100,8 +100,25 @@ namespace blade::NetworkUtils {
      * @return Number of bytes received, or -1 on error
      */
     int receiveData(SocketType socket, char* buffer, size_t maxSize);
+
+    /**
+     * @brief Send all data through socket
+     * @param socket Socket descriptor
+     * @param data Pointer to data
+     * @param len Length of data
+     * @return true on success, false on error
+     */
+    bool sendAll(SocketType socket, const void* data, size_t len);
+
+    /**
+     * @brief Receive all data from socket
+     * @param socket Socket descriptor
+     * @param data Pointer to buffer
+     * @param len Length of data to receive
+     * @return true on success, false on error
+     */
+    bool recvAll(SocketType socket, void* data, size_t len);
+
 }
-
-
 
 #endif // BLADE_NETWORK_UTILS_H
